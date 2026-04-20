@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as FileSystem from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
@@ -161,7 +161,11 @@ export default function CameraScreen() {
 
     try {
       setCaptureError(null);
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92 });
+      const isWeb = Platform.OS === "web";
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.92,
+        base64: isWeb,
+      });
       if (!photo?.uri) {
         setCaptureError("Could not capture photo. Please try again.");
         return;
@@ -169,12 +173,32 @@ export default function CameraScreen() {
 
       let permanentUri = photo.uri;
 
-      if (Platform.OS !== "web" && FileSystem.documentDirectory) {
-        const dir = FileSystem.documentDirectory + "lifelens/";
-        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-        const filename = `${Date.now()}.jpg`;
-        permanentUri = dir + filename;
-        await FileSystem.copyAsync({ from: photo.uri, to: permanentUri });
+      if (isWeb) {
+        // On web, the camera returns a blob: URL that becomes invalid after
+        // a page reload. Persist the image as a base64 data URL so it
+        // survives across sessions in storage.
+        if (photo.base64) {
+          permanentUri = `data:image/jpeg;base64,${photo.base64}`;
+        } else {
+          const res = await fetch(photo.uri);
+          const blob = await res.blob();
+          permanentUri = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } else {
+        // On native, the camera writes to a cache/temp directory whose URI
+        // can be invalidated between sessions. Copy into the app's document
+        // directory so the file is guaranteed to exist when reopened.
+        const dir = new Directory(Paths.document, "lifelens");
+        if (!dir.exists) dir.create({ intermediates: true });
+        const dest = new File(dir, `${Date.now()}.jpg`);
+        const src = new File(photo.uri);
+        src.copy(dest);
+        permanentUri = dest.uri;
       }
 
       await addPhoto({

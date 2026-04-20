@@ -14,3 +14,110 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns a presigned PUT URL the client can upload bytes to directly.
+ * @summary Request a presigned upload URL
+ */
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string(),
+  size: zod.number(),
+  contentType: zod.string(),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string(),
+  objectPath: zod.string(),
+  metadata: zod.object({
+    name: zod.string(),
+    size: zod.number(),
+    contentType: zod.string(),
+  }),
+});
+
+/**
+ * @summary Fetch the cloud backup snapshot for the signed-in user
+ */
+export const GetSyncSnapshotResponse = zod.object({
+  tracks: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string(),
+      iconName: zod.string(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+      deleted: zod.boolean(),
+    }),
+  ),
+  photos: zod.array(
+    zod.object({
+      id: zod.string(),
+      trackId: zod.string(),
+      objectPath: zod.string(),
+      takenAt: zod.string(),
+      updatedAt: zod.string(),
+      deleted: zod.boolean(),
+      tiltX: zod.number().nullish(),
+      tiltY: zod.number().nullish(),
+      tiltZ: zod.number().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Push local tracks and photos to the cloud and receive merged snapshot
+ */
+export const PushSyncBody = zod.object({
+  tracks: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string(),
+      iconName: zod.string(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+      deleted: zod.boolean(),
+    }),
+  ),
+  photos: zod.array(
+    zod.object({
+      id: zod.string(),
+      trackId: zod.string(),
+      objectPath: zod.string(),
+      takenAt: zod.string(),
+      updatedAt: zod.string(),
+      deleted: zod.boolean(),
+      tiltX: zod.number().nullish(),
+      tiltY: zod.number().nullish(),
+      tiltZ: zod.number().nullish(),
+    }),
+  ),
+});
+
+export const PushSyncResponse = zod.object({
+  tracks: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string(),
+      iconName: zod.string(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+      deleted: zod.boolean(),
+    }),
+  ),
+  photos: zod.array(
+    zod.object({
+      id: zod.string(),
+      trackId: zod.string(),
+      objectPath: zod.string(),
+      takenAt: zod.string(),
+      updatedAt: zod.string(),
+      deleted: zod.boolean(),
+      tiltX: zod.number().nullish(),
+      tiltY: zod.number().nullish(),
+      tiltZ: zod.number().nullish(),
+    }),
+  ),
+});

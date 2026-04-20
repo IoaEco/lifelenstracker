@@ -32,7 +32,15 @@ function formatDateTime(dateStr: string): string {
   });
 }
 
-function BeforeAfterSlider({ firstPhoto, lastPhoto }: { firstPhoto: TrackPhoto; lastPhoto: TrackPhoto }) {
+function BeforeAfterSlider({
+  firstPhoto,
+  lastPhoto,
+  resolveSrc,
+}: {
+  firstPhoto: TrackPhoto;
+  lastPhoto: TrackPhoto;
+  resolveSrc: (p: TrackPhoto) => string;
+}) {
   const colors = useColors();
   const { width } = useWindowDimensions();
   const imageWidth = width - 32;
@@ -52,7 +60,7 @@ function BeforeAfterSlider({ firstPhoto, lastPhoto }: { firstPhoto: TrackPhoto; 
   return (
     <View style={[styles.sliderContainer, { width: imageWidth, height: imageHeight }]}>
       <Image
-        source={{ uri: firstPhoto.uri }}
+        source={{ uri: resolveSrc(firstPhoto) }}
         style={[styles.sliderImageBase, { width: imageWidth, height: imageHeight }]}
         contentFit="cover"
       />
@@ -63,7 +71,7 @@ function BeforeAfterSlider({ firstPhoto, lastPhoto }: { firstPhoto: TrackPhoto; 
         ]}
       >
         <Image
-          source={{ uri: lastPhoto.uri }}
+          source={{ uri: resolveSrc(lastPhoto) }}
           style={{ width: imageWidth, height: imageHeight }}
           contentFit="cover"
         />
@@ -87,10 +95,11 @@ function BeforeAfterSlider({ firstPhoto, lastPhoto }: { firstPhoto: TrackPhoto; 
 
 function PhotoItem({ photo }: { photo: TrackPhoto }) {
   const colors = useColors();
+  const { resolvePhotoSource } = useTrack();
   return (
     <View style={[styles.photoItem, { borderColor: colors.border }]}>
       <Image
-        source={{ uri: photo.uri }}
+        source={{ uri: resolvePhotoSource(photo) }}
         style={[styles.photoImage, { backgroundColor: colors.muted }]}
         contentFit="cover"
       />
@@ -116,7 +125,7 @@ export default function TrackDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { tracks, deleteTrack, getTrackPhotos } = useTrack();
+  const { tracks, deleteTrack, getTrackPhotos, resolvePhotoSource } = useTrack();
 
   const track = tracks.find((t) => t.id === id);
   const trackPhotos = getTrackPhotos(id ?? "");
@@ -209,7 +218,7 @@ export default function TrackDetailScreen() {
                 <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
                   Drag to compare
                 </Text>
-                <BeforeAfterSlider firstPhoto={firstPhoto} lastPhoto={lastPhoto} />
+                <BeforeAfterSlider firstPhoto={firstPhoto} lastPhoto={lastPhoto} resolveSrc={resolvePhotoSource} />
               </View>
             ) : null}
 

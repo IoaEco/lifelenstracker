@@ -6,4 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./cloudPhoto";
+export * from "./cloudTrack";
 export * from "./healthStatus";
+export * from "./requestUploadUrlBody";
+export * from "./requestUploadUrlResponse";
+export * from "./requestUploadUrlResponseMetadata";
+export * from "./syncPushBody";
+export * from "./syncSnapshot";

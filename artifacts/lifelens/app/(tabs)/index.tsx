@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -35,7 +35,7 @@ function formatTimeAgo(dateStr: string): string {
 
 function TrackCard({ track }: { track: Track }) {
   const colors = useColors();
-  const { getTrackPhotos } = useTrack();
+  const { getTrackPhotos, resolvePhotoSource } = useTrack();
   const trackPhotos = getTrackPhotos(track.id);
   const latestPhoto = trackPhotos.length > 0 ? trackPhotos[trackPhotos.length - 1] : null;
   const photoCount = trackPhotos.length;
@@ -100,7 +100,7 @@ function TrackCard({ track }: { track: Track }) {
 
       {latestPhoto ? (
         <Image
-          source={{ uri: latestPhoto.uri }}
+          source={{ uri: resolvePhotoSource(latestPhoto) }}
           style={[styles.thumbnail, { borderColor: colors.border }]}
           contentFit="cover"
         />
@@ -122,7 +122,7 @@ function TrackCard({ track }: { track: Track }) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { tracks, loading } = useTrack();
+  const { tracks, loading, isCloudEnabled } = useTrack();
   const [showModal, setShowModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
 
@@ -161,6 +161,24 @@ export default function HomeScreen() {
             activeOpacity={0.7}
           >
             <Ionicons name="contrast-outline" size={20} color={colors.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="account-button"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/account" as Href);
+            }}
+            style={[
+              styles.iconButton,
+              { backgroundColor: colors.muted, borderColor: colors.border },
+            ]}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isCloudEnabled ? "cloud-done-outline" : "person-circle-outline"}
+              size={20}
+              color={isCloudEnabled ? colors.primary : colors.foreground}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             testID="add-track-button"

@@ -37,14 +37,21 @@ A cross-platform mobile app for tracking long-term life changes with photos.
 - Smart camera: semi-transparent ghost overlay of the previous photo for alignment, rule-of-thirds grid, accelerometer tilt indicator (native only)
 - Before/after slider comparison in track detail view
 - Local-first persistence with AsyncStorage (metadata) + expo-file-system (photos)
+- Optional cloud backup: sign in with Clerk (email + password) to sync tracks and photos across devices via the API server (Postgres metadata + Object Storage for photo bytes), with last-write-wins merge by `updatedAt` and tombstones for deletes.
 
 **Key files:**
-- `artifacts/lifelens/context/TrackContext.tsx` — data model and persistence (Track, TrackPhoto)
-- `artifacts/lifelens/app/(tabs)/index.tsx` — home screen (tracks list)
+- `artifacts/lifelens/context/TrackContext.tsx` — data model, local persistence, and cloud sync orchestration
+- `artifacts/lifelens/lib/cloudSync.ts` — authed fetch helpers for `/api/sync/*` and `/api/storage/uploads/request-url`
+- `artifacts/lifelens/app/_layout.tsx` — wraps the app in `ClerkProvider` (uses `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`)
+- `artifacts/lifelens/app/(tabs)/index.tsx` — home screen with account button
+- `artifacts/lifelens/app/account.tsx` — account / sync status / sign-out screen
+- `artifacts/lifelens/app/sign-in.tsx`, `sign-up.tsx` — custom Clerk email+password flows
 - `artifacts/lifelens/app/track/[id].tsx` — track detail + before/after slider
 - `artifacts/lifelens/app/camera.tsx` — smart camera screen with overlay + sensors
 - `artifacts/lifelens/components/NewTrackModal.tsx` — track creation modal
 - `artifacts/lifelens/constants/colors.ts` — dark/light palette with electric cyan accent
+
+**API server endpoints for sync** (`artifacts/api-server`): `GET /api/sync/snapshot`, `POST /api/sync/push`, `POST /api/storage/uploads/request-url`. All require a Clerk Bearer token; `requireAuth` middleware upserts the Clerk user into `users` and attaches `req.userId`.
 
 **Design:** Dark photography aesthetic, electric cyan (#00D4FF) primary, Inter font family, supports both light and dark mode via `useColors()` hook.
 

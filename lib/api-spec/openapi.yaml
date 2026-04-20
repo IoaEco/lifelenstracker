@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: storage
+    description: Object storage upload helpers
+  - name: sync
+    description: Cloud backup of tracks and photos
 paths:
   /healthz:
     get:
@@ -24,6 +28,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      description: Returns a presigned PUT URL the client can upload bytes to directly.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned URL granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+        "401":
+          description: Unauthorized
+  /sync/snapshot:
+    get:
+      operationId: getSyncSnapshot
+      tags: [sync]
+      summary: Fetch the cloud backup snapshot for the signed-in user
+      responses:
+        "200":
+          description: Cloud snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncSnapshot"
+        "401":
+          description: Unauthorized
+  /sync/push:
+    post:
+      operationId: pushSync
+      tags: [sync]
+      summary: Push local tracks and photos to the cloud and receive merged snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPushBody"
+      responses:
+        "200":
+          description: Merged snapshot after upsert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncSnapshot"
+        "401":
+          description: Unauthorized
 components:
   schemas:
     HealthStatus:
@@ -33,4 +92,121 @@ components:
           type: string
       required:
         - status
-
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+      required:
+        - name
+        - size
+        - contentType
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          type: object
+          properties:
+            name:
+              type: string
+            size:
+              type: integer
+            contentType:
+              type: string
+          required: [name, size, contentType]
+      required:
+        - uploadURL
+        - objectPath
+        - metadata
+    CloudTrack:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        iconName:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        deleted:
+          type: boolean
+      required:
+        - id
+        - title
+        - description
+        - iconName
+        - createdAt
+        - updatedAt
+        - deleted
+    CloudPhoto:
+      type: object
+      properties:
+        id:
+          type: string
+        trackId:
+          type: string
+        objectPath:
+          type: string
+        takenAt:
+          type: string
+        updatedAt:
+          type: string
+        deleted:
+          type: boolean
+        tiltX:
+          type: number
+          nullable: true
+        tiltY:
+          type: number
+          nullable: true
+        tiltZ:
+          type: number
+          nullable: true
+      required:
+        - id
+        - trackId
+        - objectPath
+        - takenAt
+        - updatedAt
+        - deleted
+    SyncSnapshot:
+      type: object
+      properties:
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CloudTrack"
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/CloudPhoto"
+      required:
+        - tracks
+        - photos
+    SyncPushBody:
+      type: object
+      properties:
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CloudTrack"
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/CloudPhoto"
+      required:
+        - tracks
+        - photos

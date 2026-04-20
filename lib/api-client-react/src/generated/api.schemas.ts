@@ -8,3 +8,53 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface RequestUploadUrlBody {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export type RequestUploadUrlResponseMetadata = {
+  name: string;
+  size: number;
+  contentType: string;
+};
+
+export interface RequestUploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata: RequestUploadUrlResponseMetadata;
+}
+
+export interface CloudTrack {
+  id: string;
+  title: string;
+  description: string;
+  iconName: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted: boolean;
+}
+
+export interface CloudPhoto {
+  id: string;
+  trackId: string;
+  objectPath: string;
+  takenAt: string;
+  updatedAt: string;
+  deleted: boolean;
+  tiltX?: number | null;
+  tiltY?: number | null;
+  tiltZ?: number | null;
+}
+
+export interface SyncSnapshot {
+  tracks: CloudTrack[];
+  photos: CloudPhoto[];
+}
+
+export interface SyncPushBody {
+  tracks: CloudTrack[];
+  photos: CloudPhoto[];
+}

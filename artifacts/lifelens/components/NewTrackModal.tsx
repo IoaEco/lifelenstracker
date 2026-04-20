@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,8 +17,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { TRACK_ICONS, type IoniconsName } from "@/constants/icons";
+import { NewCategoryModal } from "@/components/NewCategoryModal";
+import type { IoniconsName } from "@/constants/icons";
 import { useColors } from "@/hooks/useColors";
+import { useCategories } from "@/context/CategoriesContext";
 import { useTrack } from "@/context/TrackContext";
 
 interface Props {
@@ -29,12 +32,14 @@ export function NewTrackModal({ visible, onClose }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { addTrack } = useTrack();
+  const { categories, deleteCategory } = useCategories();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedIcon, setSelectedIcon] = useState<IoniconsName>("body-outline");
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState("");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   function reset() {
     setTitle("");
@@ -71,6 +76,27 @@ export function NewTrackModal({ visible, onClose }: Props) {
     }
   }
 
+  function handleDeleteCustomCategory(id: string, label: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS === "web") {
+      const ok = typeof window !== "undefined" && window.confirm(`Delete "${label}" category?`);
+      if (ok) deleteCategory(id);
+      return;
+    }
+    Alert.alert(
+      "Delete category",
+      `Remove "${label}" from your categories? Existing tracks keep their icon.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteCategory(id),
+        },
+      ]
+    );
+  }
+
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
@@ -84,7 +110,6 @@ export function NewTrackModal({ visible, onClose }: Props) {
         style={[styles.container, { backgroundColor: colors.background }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
             <Ionicons name="close" size={24} color={colors.mutedForeground} />
@@ -118,7 +143,6 @@ export function NewTrackModal({ visible, onClose }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Title Input */}
           <View style={styles.field}>
             <Text style={[styles.label, { color: colors.mutedForeground }]}>
               TRACK NAME
@@ -151,7 +175,6 @@ export function NewTrackModal({ visible, onClose }: Props) {
             ) : null}
           </View>
 
-          {/* Description Input */}
           <View style={styles.field}>
             <Text style={[styles.label, { color: colors.mutedForeground }]}>
               DESCRIPTION (OPTIONAL)
@@ -176,21 +199,31 @@ export function NewTrackModal({ visible, onClose }: Props) {
             />
           </View>
 
-          {/* Icon Picker */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>
-              ICON
-            </Text>
+            <View style={styles.categoryHeader}>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                CATEGORY
+              </Text>
+              <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+                Long-press a custom one to remove
+              </Text>
+            </View>
             <View style={styles.iconGrid}>
-              {TRACK_ICONS.map((icon) => {
-                const isSelected = selectedIcon === icon.name;
+              {categories.map((cat) => {
+                const isSelected = selectedIcon === cat.name;
                 return (
                   <Pressable
-                    key={icon.name}
+                    key={cat.id}
                     onPress={() => {
                       Haptics.selectionAsync();
-                      setSelectedIcon(icon.name);
+                      setSelectedIcon(cat.name);
                     }}
+                    onLongPress={
+                      cat.builtIn
+                        ? undefined
+                        : () => handleDeleteCustomCategory(cat.id, cat.label)
+                    }
+                    delayLongPress={350}
                     style={[
                       styles.iconOption,
                       {
@@ -202,7 +235,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
                     ]}
                   >
                     <Ionicons
-                      name={icon.name}
+                      name={cat.name}
                       size={24}
                       color={isSelected ? colors.primary : colors.mutedForeground}
                     />
@@ -213,24 +246,60 @@ export function NewTrackModal({ visible, onClose }: Props) {
                           color: isSelected ? colors.primary : colors.mutedForeground,
                         },
                       ]}
+                      numberOfLines={1}
                     >
-                      {icon.label}
+                      {cat.label}
                     </Text>
+                    {!cat.builtIn && (
+                      <View
+                        style={[
+                          styles.customDot,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      />
+                    )}
                   </Pressable>
                 );
               })}
+
+              <Pressable
+                testID="add-category-tile"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowCategoryModal(true);
+                }}
+                style={[
+                  styles.iconOption,
+                  styles.addCategoryTile,
+                  {
+                    borderColor: colors.primary,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              >
+                <Ionicons name="add" size={24} color={colors.primary} />
+                <Text style={[styles.iconLabel, { color: colors.primary }]}>
+                  New
+                </Text>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
+
+        <NewCategoryModal
+          visible={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          onCreated={(cat) => {
+            setSelectedIcon(cat.name);
+          }}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -239,9 +308,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerBtn: {
-    padding: 4,
-  },
+  headerBtn: { padding: 4 },
   headerTitle: {
     fontSize: 17,
     fontFamily: "Inter_600SemiBold",
@@ -259,8 +326,15 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 24,
   },
-  field: {
-    gap: 8,
+  field: { gap: 8 },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+  },
+  hint: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
   },
   label: {
     fontSize: 11,
@@ -302,9 +376,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    paddingHorizontal: 4,
+    position: "relative",
   },
   iconLabel: {
     fontSize: 9,
     fontFamily: "Inter_500Medium",
+  },
+  customDot: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  addCategoryTile: {
+    borderStyle: "dashed",
   },
 });

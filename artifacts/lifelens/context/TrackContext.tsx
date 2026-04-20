@@ -218,9 +218,39 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
         }
         if (photosData) {
           const parsed = JSON.parse(photosData) as TrackPhoto[];
-          setPhotos(
-            parsed.map((p) => ({ ...p, updatedAt: p.updatedAt || p.takenAt })),
-          );
+          const normalized = parsed.map((p) => ({
+            ...p,
+            updatedAt: p.updatedAt || p.takenAt,
+          }));
+          const cleaned: TrackPhoto[] = [];
+          for (const p of normalized) {
+            const uri = p.uri || "";
+            let broken = false;
+            if (uri && !uri.startsWith("http")) {
+              if (Platform.OS === "web") {
+                if (uri.startsWith("blob:")) broken = true;
+              } else {
+                try {
+                  const file = new File(uri);
+                  if (!file.exists) broken = true;
+                } catch {
+                  broken = true;
+                }
+              }
+            }
+            if (broken) {
+              if (p.objectPath) {
+                cleaned.push({ ...p, uri: "" });
+              }
+              // otherwise drop the entry entirely
+            } else {
+              cleaned.push(p);
+            }
+          }
+          setPhotos(cleaned);
+          if (cleaned.length !== normalized.length || cleaned.some((p, i) => p.uri !== normalized[i]?.uri)) {
+            await AsyncStorage.setItem(PHOTOS_KEY, JSON.stringify(cleaned));
+          }
         }
         if (syncedAt) setLastSyncedAt(syncedAt);
       } catch {

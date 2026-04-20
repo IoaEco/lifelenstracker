@@ -1405,7 +1405,7 @@ export default function TrackDetailScreen() {
       {measurement && track ? (
         <MeasureFromPhotoModal
           visible={measuringPhoto !== null}
-          photoUri={measuringPhoto ? resolvePhotoSource(measuringPhoto) : null}
+          photoSource={measuringPhoto ? resolvePhotoSource(measuringPhoto) : null}
           measurementLabel={measurement.label}
           measurementUnit={measurement.unit}
           initialReferenceId={track.lastReferenceId ?? null}

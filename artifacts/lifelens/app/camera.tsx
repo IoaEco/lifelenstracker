@@ -440,7 +440,7 @@ export default function CameraScreen() {
 
         <MeasureFromPhotoModal
           visible={measureFromPhotoOpen}
-          photoUri={pendingUri}
+          photoSource={pendingUri ? { uri: pendingUri } : null}
           measurementLabel={measurement.label}
           measurementUnit={measurement.unit}
           initialReferenceId={track?.lastReferenceId ?? null}

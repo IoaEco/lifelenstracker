@@ -15,14 +15,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import type { Measurement, TrackPhoto } from "@/context/TrackContext";
+import type { Measurement, PhotoSource, TrackPhoto } from "@/context/TrackContext";
 import { useColors } from "@/hooks/useColors";
 
 interface Props {
   visible: boolean;
   photo: TrackPhoto | null;
   measurement: Measurement;
-  resolveSrc: (p: TrackPhoto) => string;
+  resolveSrc: (p: TrackPhoto) => PhotoSource;
   onClose: () => void;
   onSave: (value: number | null) => Promise<void>;
   onMeasureFromPhoto?: () => void;
@@ -119,7 +119,7 @@ export function EditPhotoMeasurementSheet({
 
               {photo ? (
                 <Image
-                  source={{ uri: resolveSrc(photo) }}
+                  source={resolveSrc(photo)}
                   style={[styles.thumb, { backgroundColor: colors.muted }]}
                   contentFit="cover"
                 />

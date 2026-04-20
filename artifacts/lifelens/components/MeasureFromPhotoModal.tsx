@@ -33,6 +33,7 @@ import {
   normalizeLengthUnit,
   type LengthUnit,
 } from "@/lib/referenceCatalog";
+import type { PhotoSource } from "@/context/TrackContext";
 
 interface Point {
   x: number;
@@ -41,7 +42,7 @@ interface Point {
 
 interface Props {
   visible: boolean;
-  photoUri: string | null;
+  photoSource: PhotoSource | null;
   measurementLabel: string;
   measurementUnit: string;
   initialReferenceId?: string | null;
@@ -66,7 +67,7 @@ function formatNumber(n: number): string {
 
 export function MeasureFromPhotoModal({
   visible,
-  photoUri,
+  photoSource,
   measurementLabel,
   measurementUnit,
   initialReferenceId,
@@ -278,9 +279,9 @@ export function MeasureFromPhotoModal({
                 imgAnimatedStyle,
               ]}
             >
-              {photoUri ? (
+              {photoSource ? (
                 <Image
-                  source={{ uri: photoUri }}
+                  source={photoSource}
                   style={{ width: imgWidth, height: imgHeight }}
                   contentFit="cover"
                 />
@@ -351,9 +352,9 @@ export function MeasureFromPhotoModal({
           </GestureDetector>
 
           {/* Magnifier loupe (screen-space, unscaled) */}
-          {loupePoint && photoUri ? (
+          {loupePoint && photoSource ? (
             <Loupe
-              photoUri={photoUri}
+              photoSource={photoSource}
               focusX={loupePoint.x}
               focusY={loupePoint.y}
               imgWidth={imgWidth}
@@ -567,13 +568,13 @@ function Endpoint({
 }
 
 function Loupe({
-  photoUri,
+  photoSource,
   focusX,
   focusY,
   imgWidth,
   imgHeight,
 }: {
-  photoUri: string;
+  photoSource: PhotoSource;
   focusX: number;
   focusY: number;
   imgWidth: number;
@@ -604,7 +605,7 @@ function Loupe({
       }}
     >
       <Image
-        source={{ uri: photoUri }}
+        source={photoSource}
         style={{
           width: imgWidth * LOUPE_ZOOM,
           height: imgHeight * LOUPE_ZOOM,

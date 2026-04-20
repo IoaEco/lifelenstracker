@@ -66,6 +66,8 @@
     "expo-secure-store": "~15.0.8",
     "expo-sensors": "^15.0.8",
     "expo-sharing": "^14.0.8",
+    "gifenc": "^1.0.3",
+    "jpeg-js": "^0.4.4",
     "react-native-view-shot": "^4.0.3"
   }
 }

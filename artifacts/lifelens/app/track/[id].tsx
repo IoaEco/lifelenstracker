@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import { File, Paths } from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
+import { applyPalette, GIFEncoder, quantize } from "gifenc";
+import { decode as decodeJpeg } from "jpeg-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -608,6 +611,67 @@ function ShareComposite({
   );
 }
 
+const TIMELAPSE_FRAME_WIDTH = 360;
+const TIMELAPSE_FRAME_HEIGHT = 480;
+
+function TimelapseFrame({
+  innerRef,
+  title,
+  photo,
+  index,
+  total,
+  resolveSrc,
+}: {
+  innerRef: React.RefObject<ViewShot | null>;
+  title: string;
+  photo: TrackPhoto | null;
+  index: number;
+  total: number;
+  resolveSrc: (p: TrackPhoto) => PhotoSource;
+}) {
+  return (
+    <View pointerEvents="none" style={styles.shareOffscreen}>
+      <ViewShot ref={innerRef} options={{ format: "jpg", quality: 0.92 }}>
+        <View style={styles.timelapseCanvas}>
+          {photo ? (
+            <Image
+              source={resolveSrc(photo)}
+              style={{
+                width: TIMELAPSE_FRAME_WIDTH,
+                height: TIMELAPSE_FRAME_HEIGHT,
+                backgroundColor: "#000",
+              }}
+              contentFit="cover"
+            />
+          ) : (
+            <View
+              style={{
+                width: TIMELAPSE_FRAME_WIDTH,
+                height: TIMELAPSE_FRAME_HEIGHT,
+                backgroundColor: "#000",
+              }}
+            />
+          )}
+          <View style={styles.timelapseTopBar}>
+            <Text style={styles.timelapseTitle} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={styles.timelapseCounter}>
+              {index + 1} / {total}
+            </Text>
+          </View>
+          <View style={styles.timelapseBottomBar}>
+            <Text style={styles.timelapseDate}>
+              {photo ? formatShortDate(photo.takenAt) : ""}
+            </Text>
+            <Text style={styles.timelapseFooter}>LifeLens</Text>
+          </View>
+        </View>
+      </ViewShot>
+    </View>
+  );
+}
+
 export default function TrackDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -622,8 +686,12 @@ export default function TrackDetailScreen() {
     updateTrackLastReference,
   } = useTrack();
   const shareRef = useRef<ViewShot | null>(null);
+  const timelapseRef = useRef<ViewShot | null>(null);
   const [sharing, setSharing] = useState(false);
   const [savingToPhotos, setSavingToPhotos] = useState(false);
+  const [timelapseFrameIdx, setTimelapseFrameIdx] = useState<number | null>(null);
+  const [exportingTimelapse, setExportingTimelapse] = useState(false);
+  const [timelapseProgress, setTimelapseProgress] = useState(0);
   const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions({
     granularPermissions: ["photo"],
   });
@@ -766,6 +834,137 @@ export default function TrackDetailScreen() {
   const canShowComparison = trackPhotos.length >= 2 && !!leftPhoto && !!rightPhoto;
   const canShare = !!leftPhoto && !!rightPhoto;
 
+  function handleSharePress() {
+    if (!canShare || sharing || exportingTimelapse) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (trackPhotos.length < 2) {
+      void handleShareStill();
+      return;
+    }
+    Alert.alert(
+      "Share track",
+      "How would you like to share this track?",
+      [
+        {
+          text: "Before & After image",
+          onPress: () => void handleShareStill(),
+        },
+        {
+          text: `Animated timelapse (${trackPhotos.length} photos)`,
+          onPress: () => void handleShareTimelapse(),
+        },
+        { text: "Cancel", style: "cancel" },
+      ],
+      { cancelable: true },
+    );
+  }
+
+  async function handleShareTimelapse() {
+    if (exportingTimelapse || sharing) return;
+    if (trackPhotos.length < 2) return;
+    setExportingTimelapse(true);
+    setTimelapseProgress(0);
+    try {
+      const available = await Sharing.isAvailableAsync();
+      if (!available) {
+        Alert.alert("Sharing unavailable", "Sharing is not available on this device.");
+        return;
+      }
+      // Prefetch every photo in the track so the offscreen ViewShot has the
+      // bitmap ready when we render each frame.
+      try {
+        await Image.prefetch(trackPhotos.map((p) => resolvePhotoSource(p).uri));
+      } catch {
+        // best-effort
+      }
+
+      const gif = GIFEncoder();
+      const photos = trackPhotos;
+      const isLong = photos.length >= 12;
+      const baseDelay = isLong ? 350 : 600;
+
+      for (let i = 0; i < photos.length; i++) {
+        setTimelapseFrameIdx(i);
+        // Allow React to re-render and the Image to settle before capture.
+        await new Promise((r) => setTimeout(r, 220));
+        if (!timelapseRef.current) {
+          throw new Error("Timelapse renderer is not ready.");
+        }
+        const frameUri = await captureRef(timelapseRef.current, {
+          format: "jpg",
+          quality: 0.92,
+          width: TIMELAPSE_FRAME_WIDTH,
+          height: TIMELAPSE_FRAME_HEIGHT,
+        });
+        const frameFile = new File(frameUri);
+        const jpegBytes = await frameFile.bytes();
+        const decoded = decodeJpeg(jpegBytes, {
+          useTArray: true,
+          formatAsRGBA: true,
+        });
+        try {
+          frameFile.delete();
+        } catch {
+          // ignore cleanup failures
+        }
+        const palette = quantize(decoded.data, 256);
+        const indexed = applyPalette(decoded.data, palette);
+        // First and last frames linger so the viewer can read them.
+        const isEdge = i === 0 || i === photos.length - 1;
+        gif.writeFrame(indexed, decoded.width, decoded.height, {
+          palette,
+          delay: isEdge ? baseDelay + 800 : baseDelay,
+        });
+        setTimelapseProgress((i + 1) / photos.length);
+        // Yield to UI so the spinner can update.
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      gif.finish();
+      const gifBytes = gif.bytes();
+
+      const safeTitle = (track?.title ?? "track")
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase() || "track";
+      const outFile = new File(
+        Paths.cache,
+        `lifelens-timelapse-${safeTitle}-${Date.now()}.gif`,
+      );
+      try {
+        outFile.create({ overwrite: true });
+      } catch {
+        // already exists or directory present — write will overwrite
+      }
+      outFile.write(gifBytes);
+
+      try {
+        await Sharing.shareAsync(outFile.uri, {
+          mimeType: "image/gif",
+          dialogTitle: `${track!.title} — Timelapse`,
+          UTI: "com.compuserve.gif",
+        });
+      } finally {
+        // Best-effort cleanup so cached GIFs don't accumulate over time.
+        try {
+          outFile.delete();
+        } catch {
+          // ignore cleanup failures
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not generate timelapse";
+      Alert.alert("Timelapse failed", message);
+    } finally {
+      setExportingTimelapse(false);
+      setTimelapseFrameIdx(null);
+      setTimelapseProgress(0);
+    }
+  }
+
+  async function handleShareStill() {
+    return handleShare();
+  }
+
   async function handleShare() {
     if (!canShare || !leftPhoto || !rightPhoto || sharing) return;
     setSharing(true);
@@ -896,14 +1095,22 @@ export default function TrackDetailScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               testID="share-track-button"
-              onPress={handleShare}
-              disabled={sharing}
-              style={[styles.headerIconBtn, sharing && styles.headerIconBtnDisabled]}
+              onPress={handleSharePress}
+              disabled={sharing || exportingTimelapse}
+              style={[
+                styles.headerIconBtn,
+                (sharing || exportingTimelapse) && styles.headerIconBtnDisabled,
+              ]}
+              accessibilityLabel="Share this track"
             >
               <Ionicons
                 name="share-outline"
                 size={22}
-                color={sharing ? colors.mutedForeground : colors.foreground}
+                color={
+                  sharing || exportingTimelapse
+                    ? colors.mutedForeground
+                    : colors.foreground
+                }
               />
             </TouchableOpacity>
           </>
@@ -931,6 +1138,53 @@ export default function TrackDetailScreen() {
           rightPhoto={rightPhoto}
           resolveSrc={resolvePhotoSource}
         />
+      ) : null}
+
+      {exportingTimelapse ? (
+        <TimelapseFrame
+          innerRef={timelapseRef}
+          title={track.title}
+          photo={
+            timelapseFrameIdx != null
+              ? trackPhotos[timelapseFrameIdx] ?? null
+              : null
+          }
+          index={timelapseFrameIdx ?? 0}
+          total={trackPhotos.length}
+          resolveSrc={resolvePhotoSource}
+        />
+      ) : null}
+
+      {exportingTimelapse ? (
+        <Modal transparent animationType="fade" visible>
+          <View style={styles.timelapseOverlay}>
+            <View style={[styles.timelapseProgressCard, { backgroundColor: colors.card }]}>
+              <Ionicons name="film-outline" size={28} color={colors.primary} />
+              <Text style={[styles.timelapseProgressTitle, { color: colors.foreground }]}>
+                Building timelapse…
+              </Text>
+              <Text style={[styles.timelapseProgressSub, { color: colors.mutedForeground }]}>
+                {Math.round(timelapseProgress * 100)}% · frame{" "}
+                {Math.min(
+                  trackPhotos.length,
+                  (timelapseFrameIdx ?? 0) + 1,
+                )}{" "}
+                of {trackPhotos.length}
+              </Text>
+              <View style={[styles.timelapseProgressTrack, { backgroundColor: colors.muted }]}>
+                <View
+                  style={[
+                    styles.timelapseProgressFill,
+                    {
+                      backgroundColor: colors.primary,
+                      width: `${Math.round(timelapseProgress * 100)}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
       ) : null}
 
       <FlatList
@@ -1274,6 +1528,100 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_500Medium",
     letterSpacing: 0.5,
+  },
+  timelapseCanvas: {
+    width: TIMELAPSE_FRAME_WIDTH,
+    height: TIMELAPSE_FRAME_HEIGHT,
+    backgroundColor: "#000",
+    position: "relative",
+  },
+  timelapseTopBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  timelapseTitle: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    marginRight: 8,
+  },
+  timelapseCounter: {
+    color: "#fff",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  timelapseBottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  timelapseDate: {
+    color: "#fff",
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.4,
+  },
+  timelapseFooter: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 1.2,
+  },
+  timelapseOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  timelapseProgressCard: {
+    width: "100%",
+    maxWidth: 320,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    borderRadius: 16,
+    alignItems: "center",
+    gap: 8,
+  },
+  timelapseProgressTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    marginTop: 4,
+  },
+  timelapseProgressSub: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    marginBottom: 8,
+  },
+  timelapseProgressTrack: {
+    width: "100%",
+    height: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  timelapseProgressFill: {
+    height: 6,
+    borderRadius: 999,
   },
   listContent: {
     paddingHorizontal: 16,

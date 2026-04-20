@@ -9,6 +9,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -40,6 +41,8 @@ export default function AccountScreen() {
     photos,
     backupCounts,
     retryFailedUploads,
+    cloudBackupEnabled,
+    setCloudBackupEnabled,
   } = useTrack();
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
@@ -131,8 +134,40 @@ export default function AccountScreen() {
                   {user?.primaryEmailAddress?.emailAddress ?? "Signed in"}
                 </Text>
                 <Text style={[styles.userMeta, { color: colors.mutedForeground }]}>
-                  Cloud backup is on
+                  Cloud backup is {cloudBackupEnabled ? "on" : "off"}
                 </Text>
+              </View>
+            </View>
+
+            <View
+              testID="account-cloud-backup-toggle-card"
+              style={[
+                styles.syncCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={[styles.syncTitle, { color: colors.foreground }]}>
+                    Back up photos to cloud
+                  </Text>
+                  <Text
+                    style={[styles.syncMeta, { color: colors.mutedForeground }]}
+                  >
+                    {cloudBackupEnabled
+                      ? "New photos and tracks are uploaded so you can restore them on another device."
+                      : "Photos and tracks stay only on this device. Nothing is uploaded."}
+                  </Text>
+                </View>
+                <Switch
+                  testID="account-cloud-backup-switch"
+                  value={cloudBackupEnabled}
+                  onValueChange={(v) => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    void setCloudBackupEnabled(v);
+                  }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                />
               </View>
             </View>
 
@@ -161,6 +196,7 @@ export default function AccountScreen() {
               </View>
             </View>
 
+            {cloudBackupEnabled && (
             <View
               testID="account-backup-card"
               style={[
@@ -232,7 +268,9 @@ export default function AccountScreen() {
                 </Pressable>
               )}
             </View>
+            )}
 
+            {cloudBackupEnabled && (
             <View
               style={[
                 styles.syncCard,
@@ -297,6 +335,7 @@ export default function AccountScreen() {
                 )}
               </Pressable>
             </View>
+            )}
 
             <Pressable
               testID="account-signout"
@@ -422,6 +461,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   syncBtnText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   signoutBtn: {
     paddingVertical: 14,
     borderRadius: 14,

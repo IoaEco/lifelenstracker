@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NewTrackModal } from "@/components/NewTrackModal";
+import { ThemePickerModal } from "@/components/ThemePickerModal";
 import { useColors } from "@/hooks/useColors";
 import { type Track, useTrack } from "@/context/TrackContext";
 
@@ -123,6 +124,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { tracks, loading } = useTrack();
   const [showModal, setShowModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
@@ -145,17 +147,33 @@ export default function HomeScreen() {
             {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
           </Text>
         </View>
-        <TouchableOpacity
-          testID="add-track-button"
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowModal(true);
-          }}
-          style={[styles.addButton, { backgroundColor: colors.primary }]}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={24} color="#000" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            testID="theme-button"
+            onPress={() => {
+              Haptics.selectionAsync();
+              setShowThemeModal(true);
+            }}
+            style={[
+              styles.iconButton,
+              { backgroundColor: colors.muted, borderColor: colors.border },
+            ]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="contrast-outline" size={20} color={colors.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="add-track-button"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowModal(true);
+            }}
+            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {tracks.length === 0 ? (
@@ -199,6 +217,11 @@ export default function HomeScreen() {
         visible={showModal}
         onClose={() => setShowModal(false)}
       />
+
+      <ThemePickerModal
+        visible={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+      />
     </View>
   );
 }
@@ -214,6 +237,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 28,

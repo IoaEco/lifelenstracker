@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
+import * as MediaLibrary from "expo-media-library";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -622,6 +623,10 @@ export default function TrackDetailScreen() {
   } = useTrack();
   const shareRef = useRef<ViewShot | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [savingToPhotos, setSavingToPhotos] = useState(false);
+  const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions({
+    granularPermissions: ["photo"],
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<TrackPhoto | null>(null);
   const [measuringPhoto, setMeasuringPhoto] = useState<TrackPhoto | null>(null);
@@ -802,6 +807,63 @@ export default function TrackDetailScreen() {
     }
   }
 
+  async function handleSaveToPhotos() {
+    if (!canShare || !leftPhoto || !rightPhoto || savingToPhotos) return;
+    setSavingToPhotos(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      let permission = mediaPermission;
+      if (!permission || permission.status !== "granted") {
+        permission = await requestMediaPermission();
+      }
+      if (!permission || permission.status !== "granted") {
+        if (permission && !permission.canAskAgain) {
+          Alert.alert(
+            "Permission needed",
+            "LifeLens needs permission to save photos to your library. Enable it in Settings.",
+          );
+        } else {
+          Alert.alert(
+            "Permission needed",
+            "LifeLens needs permission to save photos to your library.",
+          );
+        }
+        return;
+      }
+
+      try {
+        await Image.prefetch([
+          resolvePhotoSource(leftPhoto).uri,
+          resolvePhotoSource(rightPhoto).uri,
+        ]);
+      } catch {
+        // best-effort
+      }
+      await new Promise((r) => setTimeout(r, 200));
+      if (!shareRef.current) {
+        Alert.alert("Save failed", "Image is not ready yet, please try again.");
+        return;
+      }
+      const uri = await captureRef(shareRef.current, {
+        format: "jpg",
+        quality: 0.95,
+      });
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Alert.alert(
+        "Saved to Photos",
+        Platform.OS === "ios"
+          ? "Your before/after image was saved to your Photos library."
+          : "Your before/after image was saved to your gallery.",
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not save image";
+      Alert.alert("Save failed", message);
+    } finally {
+      setSavingToPhotos(false);
+    }
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -818,18 +880,33 @@ export default function TrackDetailScreen() {
           </Text>
         </View>
         {canShare ? (
-          <TouchableOpacity
-            testID="share-track-button"
-            onPress={handleShare}
-            disabled={sharing}
-            style={[styles.headerIconBtn, sharing && styles.headerIconBtnDisabled]}
-          >
-            <Ionicons
-              name="share-outline"
-              size={22}
-              color={sharing ? colors.mutedForeground : colors.foreground}
-            />
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              testID="save-to-photos-button"
+              onPress={handleSaveToPhotos}
+              disabled={savingToPhotos}
+              style={[styles.headerIconBtn, savingToPhotos && styles.headerIconBtnDisabled]}
+              accessibilityLabel="Save before and after to Photos"
+            >
+              <Ionicons
+                name="download-outline"
+                size={22}
+                color={savingToPhotos ? colors.mutedForeground : colors.foreground}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="share-track-button"
+              onPress={handleShare}
+              disabled={sharing}
+              style={[styles.headerIconBtn, sharing && styles.headerIconBtnDisabled]}
+            >
+              <Ionicons
+                name="share-outline"
+                size={22}
+                color={sharing ? colors.mutedForeground : colors.foreground}
+              />
+            </TouchableOpacity>
+          </>
         ) : null}
         <TouchableOpacity
           testID="track-settings-button"

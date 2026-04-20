@@ -22,7 +22,9 @@
     },
     "android": {
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -42,6 +44,14 @@
         {
           "cameraPermission": "LifeLens uses the camera to capture your progress photos.",
           "microphonePermission": "false"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "LifeLens needs access to your photo library to save your before/after images.",
+          "savePhotosPermission": "LifeLens needs permission to save your before/after images to your photo library.",
+          "isAccessMediaLocationEnabled": false
         }
       ]
     ],

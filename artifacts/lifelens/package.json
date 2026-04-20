@@ -62,6 +62,7 @@
     "expo-camera": "^17.0.10",
     "expo-crypto": "~15.0.8",
     "expo-file-system": "^19.0.21",
+    "expo-media-library": "~18.2.1",
     "expo-secure-store": "~15.0.8",
     "expo-sensors": "^15.0.8",
     "expo-sharing": "^14.0.8",

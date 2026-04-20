@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system";
+import { Platform } from "react-native";
 import React, {
   createContext,
   useCallback,
@@ -95,9 +97,17 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTrack = useCallback(
     async (trackId: string) => {
+      const trackPhotoUris = photos
+        .filter((p) => p.trackId === trackId)
+        .map((p) => p.uri);
       const updatedTracks = tracks.filter((t) => t.id !== trackId);
       const updatedPhotos = photos.filter((p) => p.trackId !== trackId);
       await Promise.all([saveTracks(updatedTracks), savePhotos(updatedPhotos)]);
+      if (Platform.OS !== "web") {
+        await Promise.allSettled(
+          trackPhotoUris.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true }))
+        );
+      }
     },
     [tracks, photos, saveTracks, savePhotos]
   );
@@ -118,8 +128,12 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
 
   const deletePhoto = useCallback(
     async (photoId: string) => {
+      const photo = photos.find((p) => p.id === photoId);
       const updated = photos.filter((p) => p.id !== photoId);
       await savePhotos(updated);
+      if (photo && Platform.OS !== "web") {
+        await FileSystem.deleteAsync(photo.uri, { idempotent: true }).catch(() => undefined);
+      }
     },
     [photos, savePhotos]
   );

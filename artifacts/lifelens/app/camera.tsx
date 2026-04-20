@@ -138,6 +138,7 @@ export default function CameraScreen() {
   const [showGrid, setShowGrid] = useState(true);
   const accel = useAccelerometer();
   const [capturing, setCapturing] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
   const [facing, setFacing] = useState<"front" | "back">("back");
   const cameraRef = useRef<CameraView>(null);
   const shutterScale = useSharedValue(1);
@@ -159,8 +160,12 @@ export default function CameraScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     try {
+      setCaptureError(null);
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.92 });
-      if (!photo?.uri) return;
+      if (!photo?.uri) {
+        setCaptureError("Could not capture photo. Please try again.");
+        return;
+      }
 
       let permanentUri = photo.uri;
 
@@ -181,7 +186,8 @@ export default function CameraScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {
-      // capture failed — no-op, user can retry
+      setCaptureError("Save failed. Check storage permissions and try again.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setCapturing(false);
     }
@@ -336,11 +342,15 @@ export default function CameraScreen() {
           </View>
         )}
 
-        {!previousPhoto && (
+        {captureError && (
+          <Text style={styles.captureError}>{captureError}</Text>
+        )}
+
+        {!captureError && !previousPhoto && (
           <Text style={styles.firstPhotoHint}>First photo for this track</Text>
         )}
 
-        {Platform.OS === "web" && previousPhoto && (
+        {!captureError && Platform.OS === "web" && previousPhoto && (
           <Text style={styles.firstPhotoHint}>
             Overlay available on iOS & Android
           </Text>
@@ -495,6 +505,13 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: "rgba(255,255,255,0.5)",
     letterSpacing: 0.3,
+  },
+  captureError: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: "#FF5555",
+    textAlign: "center",
+    paddingHorizontal: 20,
   },
   shutterButton: {
     width: 80,

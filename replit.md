@@ -33,7 +33,8 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 A cross-platform mobile app for tracking long-term life changes with photos.
 
 **Core Features:**
-- Track management: create named tracks with icons, title, and description
+- Track management: create named tracks with icons, title, description, and optional per-track measurement (label + unit) for quantitative progress charting
+- Per-photo measurement values: capture numeric values at shoot time (review screen), edit later via photo tap, visualized with deltas in compare view and a line chart in MeasurementPanel
 - Smart camera: semi-transparent ghost overlay of the previous photo for alignment, rule-of-thirds grid, accelerometer tilt indicator (native only)
 - Before/after slider comparison in track detail view
 - Local-first persistence with AsyncStorage (metadata) + expo-file-system (photos)

@@ -14,4 +14,6 @@ export interface CloudTrack {
   createdAt: string;
   updatedAt: string;
   deleted: boolean;
+  measurementLabel?: string | null;
+  measurementUnit?: string | null;
 }

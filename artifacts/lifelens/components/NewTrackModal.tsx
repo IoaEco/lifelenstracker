@@ -37,6 +37,8 @@ export function NewTrackModal({ visible, onClose }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedIcon, setSelectedIcon] = useState<IoniconsName>("body-outline");
+  const [measurementLabel, setMeasurementLabel] = useState("");
+  const [measurementUnit, setMeasurementUnit] = useState("");
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState("");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -45,6 +47,8 @@ export function NewTrackModal({ visible, onClose }: Props) {
     setTitle("");
     setDescription("");
     setSelectedIcon("body-outline");
+    setMeasurementLabel("");
+    setMeasurementUnit("");
     setTitleError("");
     setSaving(false);
   }
@@ -62,10 +66,13 @@ export function NewTrackModal({ visible, onClose }: Props) {
     }
     setSaving(true);
     try {
+      const ml = measurementLabel.trim();
+      const mu = measurementUnit.trim();
       const newTrack = await addTrack({
         title: title.trim(),
         description: description.trim(),
         iconName: selectedIcon,
+        measurement: ml ? { label: ml, unit: mu } : null,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       reset();
@@ -197,6 +204,53 @@ export function NewTrackModal({ visible, onClose }: Props) {
               numberOfLines={3}
               returnKeyType="done"
             />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: colors.mutedForeground }]}>
+              MEASUREMENT (OPTIONAL)
+            </Text>
+            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+              Track a number with each photo (e.g. weight, waist size)
+            </Text>
+            <View style={styles.measurementRow}>
+              <TextInput
+                testID="measurement-label-input"
+                style={[
+                  styles.input,
+                  styles.measurementLabelInput,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
+                placeholder="Label (e.g. Weight)"
+                placeholderTextColor={colors.mutedForeground}
+                value={measurementLabel}
+                onChangeText={setMeasurementLabel}
+                maxLength={30}
+                returnKeyType="done"
+              />
+              <TextInput
+                testID="measurement-unit-input"
+                style={[
+                  styles.input,
+                  styles.measurementUnitInput,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
+                placeholder="Unit (kg)"
+                placeholderTextColor={colors.mutedForeground}
+                value={measurementUnit}
+                onChangeText={setMeasurementUnit}
+                maxLength={10}
+                returnKeyType="done"
+              />
+            </View>
           </View>
 
           <View style={styles.field}>
@@ -393,5 +447,15 @@ const styles = StyleSheet.create({
   },
   addCategoryTile: {
     borderStyle: "dashed",
+  },
+  measurementRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  measurementLabelInput: {
+    flex: 2,
+  },
+  measurementUnitInput: {
+    flex: 1,
   },
 });

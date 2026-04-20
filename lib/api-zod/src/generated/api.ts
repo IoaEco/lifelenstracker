@@ -48,6 +48,8 @@ export const GetSyncSnapshotResponse = zod.object({
       createdAt: zod.string(),
       updatedAt: zod.string(),
       deleted: zod.boolean(),
+      measurementLabel: zod.string().nullish(),
+      measurementUnit: zod.string().nullish(),
     }),
   ),
   photos: zod.array(
@@ -61,6 +63,7 @@ export const GetSyncSnapshotResponse = zod.object({
       tiltX: zod.number().nullish(),
       tiltY: zod.number().nullish(),
       tiltZ: zod.number().nullish(),
+      measurementValue: zod.number().nullish(),
     }),
   ),
 });
@@ -78,6 +81,8 @@ export const PushSyncBody = zod.object({
       createdAt: zod.string(),
       updatedAt: zod.string(),
       deleted: zod.boolean(),
+      measurementLabel: zod.string().nullish(),
+      measurementUnit: zod.string().nullish(),
     }),
   ),
   photos: zod.array(
@@ -91,6 +96,7 @@ export const PushSyncBody = zod.object({
       tiltX: zod.number().nullish(),
       tiltY: zod.number().nullish(),
       tiltZ: zod.number().nullish(),
+      measurementValue: zod.number().nullish(),
     }),
   ),
 });
@@ -105,6 +111,8 @@ export const PushSyncResponse = zod.object({
       createdAt: zod.string(),
       updatedAt: zod.string(),
       deleted: zod.boolean(),
+      measurementLabel: zod.string().nullish(),
+      measurementUnit: zod.string().nullish(),
     }),
   ),
   photos: zod.array(
@@ -118,6 +126,7 @@ export const PushSyncResponse = zod.object({
       tiltX: zod.number().nullish(),
       tiltY: zod.number().nullish(),
       tiltZ: zod.number().nullish(),
+      measurementValue: zod.number().nullish(),
     }),
   ),
 });

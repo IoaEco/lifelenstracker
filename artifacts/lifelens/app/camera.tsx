@@ -7,11 +7,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -132,7 +134,7 @@ export default function CameraScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { trackId } = useLocalSearchParams<{ trackId: string }>();
-  const { getLatestPhoto, addPhoto } = useTrack();
+  const { tracks, getLatestPhoto, addPhoto } = useTrack();
   const [permission, requestPermission] = useCameraPermissions();
   const [overlayOpacity, setOverlayOpacity] = useState(0.45);
   const [showGrid, setShowGrid] = useState(true);
@@ -140,9 +142,15 @@ export default function CameraScreen() {
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [facing, setFacing] = useState<"front" | "back">("back");
+  const [pendingUri, setPendingUri] = useState<string | null>(null);
+  const [pendingTilt, setPendingTilt] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [measurementInput, setMeasurementInput] = useState("");
+  const [savingPending, setSavingPending] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const shutterScale = useSharedValue(1);
 
+  const track = trackId ? tracks.find((t) => t.id === trackId) : null;
+  const measurement = track?.measurement ?? null;
   const previousPhoto = trackId ? getLatestPhoto(trackId) : null;
   // Previous-photo overlay is only shown on native (camera overlay requires real camera feed context)
   const showOverlay =
@@ -201,21 +209,69 @@ export default function CameraScreen() {
         permanentUri = dest.uri;
       }
 
-      await addPhoto({
-        trackId: trackId ?? "",
-        uri: permanentUri,
-        tilt: Platform.OS !== "web" ? accel : null,
-      });
+      const tilt = Platform.OS !== "web" ? accel : null;
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      if (measurement) {
+        // Enter review mode so the user can attach a measurement value.
+        setPendingUri(permanentUri);
+        setPendingTilt(tilt);
+        setMeasurementInput("");
+      } else {
+        await addPhoto({
+          trackId: trackId ?? "",
+          uri: permanentUri,
+          tilt,
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
+      }
     } catch {
       setCaptureError("Save failed. Check storage permissions and try again.");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setCapturing(false);
     }
-  }, [cameraRef, capturing, trackId, accel, addPhoto, shutterScale]);
+  }, [cameraRef, capturing, trackId, accel, addPhoto, shutterScale, measurement]);
+
+  const savePending = useCallback(
+    async (withValue: boolean) => {
+      if (!pendingUri || savingPending) return;
+      setSavingPending(true);
+      try {
+        let value: number | null = null;
+        if (withValue) {
+          const trimmed = measurementInput.trim().replace(",", ".");
+          const parsed = trimmed.length > 0 ? Number(trimmed) : NaN;
+          if (!Number.isFinite(parsed)) {
+            setCaptureError("Please enter a valid number.");
+            return;
+          }
+          value = parsed;
+        }
+        await addPhoto({
+          trackId: trackId ?? "",
+          uri: pendingUri,
+          tilt: pendingTilt,
+          measurementValue: value,
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
+      } catch {
+        setCaptureError("Save failed. Please try again.");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } finally {
+        setSavingPending(false);
+      }
+    },
+    [pendingUri, pendingTilt, measurementInput, savingPending, addPhoto, trackId],
+  );
+
+  const discardPending = useCallback(() => {
+    setPendingUri(null);
+    setPendingTilt(null);
+    setMeasurementInput("");
+    setCaptureError(null);
+  }, []);
 
   const shutterStyle = useAnimatedStyle(() => ({
     transform: [{ scale: shutterScale.value }],
@@ -278,6 +334,83 @@ export default function CameraScreen() {
   }
 
   const cameraHeight = height - bottomPad - 130 - topPad;
+
+  if (pendingUri && measurement) {
+    return (
+      <KeyboardAvoidingView
+        style={[styles.container, { backgroundColor: "#000" }]}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={[styles.reviewHeader, { paddingTop: topPad + 8 }]}>
+          <TouchableOpacity onPress={discardPending} style={styles.controlBtn}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.reviewTitle}>Review</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <Image
+          source={{ uri: pendingUri }}
+          style={styles.reviewImage}
+          contentFit="cover"
+        />
+        <View style={[styles.reviewBottom, { paddingBottom: bottomPad + 16 }]}>
+          <Text style={styles.reviewLabel}>{measurement.label.toUpperCase()}</Text>
+          <View style={styles.reviewInputRow}>
+            <TextInput
+              testID="review-measurement-input"
+              style={styles.reviewInput}
+              value={measurementInput}
+              onChangeText={(t) => {
+                setMeasurementInput(t);
+                if (captureError) setCaptureError(null);
+              }}
+              placeholder="0"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              keyboardType="decimal-pad"
+              autoFocus
+              maxLength={10}
+            />
+            {measurement.unit ? (
+              <Text style={styles.reviewUnit}>{measurement.unit}</Text>
+            ) : null}
+          </View>
+          {captureError ? (
+            <Text style={styles.captureError}>{captureError}</Text>
+          ) : null}
+          <View style={styles.reviewActions}>
+            <TouchableOpacity
+              testID="review-skip-button"
+              onPress={() => savePending(false)}
+              disabled={savingPending}
+              style={[styles.reviewBtn, styles.reviewBtnSecondary]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.reviewBtnSecondaryText}>Skip value</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="review-save-button"
+              onPress={() => savePending(true)}
+              disabled={savingPending || !measurementInput.trim()}
+              style={[
+                styles.reviewBtn,
+                styles.reviewBtnPrimary,
+                {
+                  opacity: !measurementInput.trim() || savingPending ? 0.5 : 1,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              {savingPending ? (
+                <ActivityIndicator color="#000" size="small" />
+              ) : (
+                <Text style={styles.reviewBtnPrimaryText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: "#000" }]}>
@@ -554,5 +687,82 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 2,
     borderColor: "#00D4FF",
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  reviewTitle: {
+    fontSize: 17,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
+  reviewImage: {
+    flex: 1,
+    width: "100%",
+    backgroundColor: "#111",
+  },
+  reviewBottom: {
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    backgroundColor: "#0A0A0A",
+    gap: 14,
+  },
+  reviewLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: "rgba(255,255,255,0.6)",
+    letterSpacing: 1,
+  },
+  reviewInputRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.2)",
+    paddingBottom: 6,
+    gap: 8,
+  },
+  reviewInput: {
+    flex: 1,
+    fontSize: 38,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    paddingVertical: 0,
+  },
+  reviewUnit: {
+    fontSize: 18,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.6)",
+  },
+  reviewActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  reviewBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reviewBtnSecondary: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  reviewBtnSecondaryText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "rgba(255,255,255,0.85)",
+  },
+  reviewBtnPrimary: {
+    backgroundColor: "#00D4FF",
+  },
+  reviewBtnPrimaryText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "#000",
   },
 });

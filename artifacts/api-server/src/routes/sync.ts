@@ -30,6 +30,8 @@ async function loadSnapshot(userId: string) {
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
       deleted: t.deleted,
+      measurementLabel: t.measurementLabel,
+      measurementUnit: t.measurementUnit,
     })),
     photos: photos.map((p) => ({
       id: p.id,
@@ -41,6 +43,7 @@ async function loadSnapshot(userId: string) {
       tiltX: p.tiltX,
       tiltY: p.tiltY,
       tiltZ: p.tiltZ,
+      measurementValue: p.measurementValue,
     })),
   };
 }
@@ -82,6 +85,8 @@ router.post("/sync/push", requireAuth, async (req: Request, res: Response) => {
           createdAt: toDate(track.createdAt),
           updatedAt: incomingUpdated,
           deleted: track.deleted,
+          measurementLabel: track.measurementLabel ?? null,
+          measurementUnit: track.measurementUnit ?? null,
         });
       } else if (existing[0].updatedAt < incomingUpdated) {
         await db
@@ -92,6 +97,8 @@ router.post("/sync/push", requireAuth, async (req: Request, res: Response) => {
             iconName: track.iconName,
             updatedAt: incomingUpdated,
             deleted: track.deleted,
+            measurementLabel: track.measurementLabel ?? null,
+            measurementUnit: track.measurementUnit ?? null,
           })
           .where(and(eq(tracksTable.id, track.id), eq(tracksTable.userId, userId)));
       }
@@ -116,6 +123,7 @@ router.post("/sync/push", requireAuth, async (req: Request, res: Response) => {
           tiltX: photo.tiltX ?? null,
           tiltY: photo.tiltY ?? null,
           tiltZ: photo.tiltZ ?? null,
+          measurementValue: photo.measurementValue ?? null,
         });
       } else if (existing[0].updatedAt < incomingUpdated) {
         await db
@@ -129,6 +137,7 @@ router.post("/sync/push", requireAuth, async (req: Request, res: Response) => {
             tiltX: photo.tiltX ?? null,
             tiltY: photo.tiltY ?? null,
             tiltZ: photo.tiltZ ?? null,
+            measurementValue: photo.measurementValue ?? null,
           })
           .where(and(eq(photosTable.id, photo.id), eq(photosTable.userId, userId)));
       }

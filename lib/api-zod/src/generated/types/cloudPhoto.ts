@@ -16,4 +16,5 @@ export interface CloudPhoto {
   tiltX?: number | null;
   tiltY?: number | null;
   tiltZ?: number | null;
+  measurementValue?: number | null;
 }

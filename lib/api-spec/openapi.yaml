@@ -143,6 +143,12 @@ components:
           type: string
         deleted:
           type: boolean
+        measurementLabel:
+          type: string
+          nullable: true
+        measurementUnit:
+          type: string
+          nullable: true
       required:
         - id
         - title
@@ -173,6 +179,9 @@ components:
           type: number
           nullable: true
         tiltZ:
+          type: number
+          nullable: true
+        measurementValue:
           type: number
           nullable: true
       required:

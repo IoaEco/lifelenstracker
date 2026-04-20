@@ -35,6 +35,8 @@ export interface CloudTrack {
   createdAt: string;
   updatedAt: string;
   deleted: boolean;
+  measurementLabel?: string | null;
+  measurementUnit?: string | null;
 }
 
 export interface CloudPhoto {
@@ -47,6 +49,7 @@ export interface CloudPhoto {
   tiltX?: number | null;
   tiltY?: number | null;
   tiltZ?: number | null;
+  measurementValue?: number | null;
 }
 
 export interface SyncSnapshot {

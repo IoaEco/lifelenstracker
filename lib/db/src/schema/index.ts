@@ -16,6 +16,8 @@ export const tracksTable = pgTable("tracks", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   deleted: boolean("deleted").notNull().default(false),
+  measurementLabel: text("measurement_label"),
+  measurementUnit: text("measurement_unit"),
 });
 
 export const photosTable = pgTable("photos", {
@@ -31,6 +33,7 @@ export const photosTable = pgTable("photos", {
   tiltX: doublePrecision("tilt_x"),
   tiltY: doublePrecision("tilt_y"),
   tiltZ: doublePrecision("tilt_z"),
+  measurementValue: doublePrecision("measurement_value"),
 });
 
 export type DbUser = typeof usersTable.$inferSelect;

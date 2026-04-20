@@ -22,6 +22,11 @@ import {
   type CloudTrack,
 } from "@/lib/cloudSync";
 
+export interface Measurement {
+  label: string;
+  unit: string;
+}
+
 export interface Track {
   id: string;
   title: string;
@@ -30,6 +35,7 @@ export interface Track {
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
+  measurement?: Measurement | null;
 }
 
 export interface TrackPhoto {
@@ -41,6 +47,7 @@ export interface TrackPhoto {
   tilt: { x: number; y: number; z: number } | null;
   objectPath?: string | null;
   deleted?: boolean;
+  measurementValue?: number | null;
 }
 
 export type SyncStatus = "idle" | "syncing" | "error";
@@ -73,10 +80,18 @@ interface TrackContextType {
   retryPhotoUpload: (photoId: string) => Promise<void>;
   retryFailedUploads: () => Promise<void>;
   addTrack: (track: Omit<Track, "id" | "createdAt" | "updatedAt">) => Promise<Track>;
+  updateTrackMeasurement: (
+    trackId: string,
+    measurement: Measurement | null,
+  ) => Promise<void>;
   deleteTrack: (trackId: string) => Promise<void>;
   addPhoto: (
     photo: Omit<TrackPhoto, "id" | "takenAt" | "updatedAt">,
   ) => Promise<TrackPhoto>;
+  updatePhotoMeasurement: (
+    photoId: string,
+    value: number | null,
+  ) => Promise<void>;
   deletePhoto: (photoId: string) => Promise<void>;
   getTrackPhotos: (trackId: string) => TrackPhoto[];
   getLatestPhoto: (trackId: string) => TrackPhoto | null;
@@ -107,6 +122,8 @@ function trackToCloud(t: Track): CloudTrack {
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
     deleted: !!t.deleted,
+    measurementLabel: t.measurement?.label ?? null,
+    measurementUnit: t.measurement?.unit ?? null,
   };
 }
 
@@ -122,7 +139,15 @@ function photoToCloud(p: TrackPhoto): CloudPhoto | null {
     tiltX: p.tilt?.x ?? null,
     tiltY: p.tilt?.y ?? null,
     tiltZ: p.tilt?.z ?? null,
+    measurementValue: p.measurementValue ?? null,
   };
+}
+
+function cloudToMeasurement(c: CloudTrack): Measurement | null {
+  if (c.measurementLabel) {
+    return { label: c.measurementLabel, unit: c.measurementUnit ?? "" };
+  }
+  return null;
 }
 
 function mergeTracks(local: Track[], cloud: CloudTrack[]): Track[] {
@@ -139,6 +164,7 @@ function mergeTracks(local: Track[], cloud: CloudTrack[]): Track[] {
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
         deleted: c.deleted,
+        measurement: cloudToMeasurement(c),
       });
     }
   }
@@ -163,6 +189,7 @@ function mergePhotos(local: TrackPhoto[], cloud: CloudPhoto[]): TrackPhoto[] {
             : null,
         objectPath: c.objectPath,
         deleted: c.deleted,
+        measurementValue: c.measurementValue ?? null,
       });
     } else if (new Date(c.updatedAt) >= new Date(existing.updatedAt)) {
       byId.set(c.id, {
@@ -172,6 +199,7 @@ function mergePhotos(local: TrackPhoto[], cloud: CloudPhoto[]): TrackPhoto[] {
         updatedAt: c.updatedAt,
         objectPath: c.objectPath,
         deleted: c.deleted,
+        measurementValue: c.measurementValue ?? null,
       });
     } else if (!existing.objectPath && c.objectPath) {
       byId.set(c.id, { ...existing, objectPath: c.objectPath });
@@ -484,6 +512,18 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     [saveTracks, isSignedIn, syncNow],
   );
 
+  const updateTrackMeasurement = useCallback(
+    async (trackId: string, measurement: Measurement | null) => {
+      const ts = nowIso();
+      const updated = tracksRef.current.map((t) =>
+        t.id === trackId ? { ...t, measurement, updatedAt: ts } : t,
+      );
+      await saveTracks(updated);
+      if (isSignedIn) void syncNow();
+    },
+    [saveTracks, isSignedIn, syncNow],
+  );
+
   const deleteTrack = useCallback(
     async (trackId: string) => {
       const ts = nowIso();
@@ -535,6 +575,18 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
       await savePhotos(updated);
       if (isSignedIn) void syncNow();
       return photo;
+    },
+    [savePhotos, isSignedIn, syncNow],
+  );
+
+  const updatePhotoMeasurement = useCallback(
+    async (photoId: string, value: number | null) => {
+      const ts = nowIso();
+      const updated = photosRef.current.map((p) =>
+        p.id === photoId ? { ...p, measurementValue: value, updatedAt: ts } : p,
+      );
+      await savePhotos(updated);
+      if (isSignedIn) void syncNow();
     },
     [savePhotos, isSignedIn, syncNow],
   );
@@ -644,8 +696,10 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
         retryPhotoUpload,
         retryFailedUploads,
         addTrack,
+        updateTrackMeasurement,
         deleteTrack,
         addPhoto,
+        updatePhotoMeasurement,
         deletePhoto,
         getTrackPhotos,
         getLatestPhoto,

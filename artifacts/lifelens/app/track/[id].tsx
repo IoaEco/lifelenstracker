@@ -22,6 +22,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ViewShot, { captureRef } from "react-native-view-shot";
 
 import { useColors } from "@/hooks/useColors";
+import { MeasurementPanel, formatMeasurementValue, formatDelta } from "@/components/MeasurementPanel";
+import { EditPhotoMeasurementSheet } from "@/components/EditPhotoMeasurementSheet";
+import { TrackMeasurementSettingsModal } from "@/components/TrackMeasurementSettingsModal";
+import type { Measurement } from "@/context/TrackContext";
 import {
   type PhotoBackupStatus,
   type TrackPhoto,
@@ -58,12 +62,14 @@ function BeforeAfterSlider({
   resolveSrc,
   onChangeLeft,
   onChangeRight,
+  measurement,
 }: {
   leftPhoto: TrackPhoto;
   rightPhoto: TrackPhoto;
   resolveSrc: (p: TrackPhoto) => string;
   onChangeLeft: () => void;
   onChangeRight: () => void;
+  measurement: Measurement | null;
 }) {
   const colors = useColors();
   const { width } = useWindowDimensions();
@@ -144,6 +150,17 @@ function BeforeAfterSlider({
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
             {formatShortDate(leftPhoto.takenAt)}
           </Text>
+          {measurement ? (
+            <Text
+              testID="before-chip-value"
+              style={[styles.swapChipValue, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+            >
+              {leftPhoto.measurementValue != null
+                ? formatMeasurementValue(leftPhoto.measurementValue, measurement.unit)
+                : "—"}
+            </Text>
+          ) : null}
           <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity
@@ -155,9 +172,41 @@ function BeforeAfterSlider({
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
             {formatShortDate(rightPhoto.takenAt)}
           </Text>
+          {measurement ? (
+            <Text
+              testID="after-chip-value"
+              style={[styles.swapChipValue, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+            >
+              {rightPhoto.measurementValue != null
+                ? formatMeasurementValue(rightPhoto.measurementValue, measurement.unit)
+                : "—"}
+            </Text>
+          ) : null}
           <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
         </TouchableOpacity>
       </View>
+
+      {measurement &&
+      leftPhoto.measurementValue != null &&
+      rightPhoto.measurementValue != null ? (
+        <View
+          testID="compare-delta"
+          style={[
+            styles.compareDelta,
+            { backgroundColor: colors.primary + "18", borderColor: colors.primary + "55" },
+          ]}
+        >
+          <Ionicons name="trending-up-outline" size={14} color={colors.primary} />
+          <Text style={[styles.compareDeltaText, { color: colors.foreground }]}>
+            {formatDelta(
+              rightPhoto.measurementValue - leftPhoto.measurementValue,
+              measurement.unit,
+            )}{" "}
+            · {measurement.label.toLowerCase()}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -170,6 +219,7 @@ function GridCompare({
   onAdd,
   canAdd,
   canRemove,
+  measurement,
 }: {
   selectedPhotos: TrackPhoto[];
   resolveSrc: (p: TrackPhoto) => string;
@@ -178,6 +228,7 @@ function GridCompare({
   onAdd: () => void;
   canAdd: boolean;
   canRemove: boolean;
+  measurement: Measurement | null;
 }) {
   const colors = useColors();
   const tileWidth = 140;
@@ -205,9 +256,21 @@ function GridCompare({
             </View>
           </Pressable>
           <View style={[styles.gridTileMeta, { backgroundColor: colors.card }]}>
-            <Text style={[styles.gridTileDate, { color: colors.foreground }]} numberOfLines={1}>
-              {formatShortDate(photo.takenAt)}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.gridTileDate, { color: colors.foreground }]} numberOfLines={1}>
+                {formatShortDate(photo.takenAt)}
+              </Text>
+              {measurement ? (
+                <Text
+                  style={[styles.gridTileValue, { color: colors.mutedForeground }]}
+                  numberOfLines={1}
+                >
+                  {photo.measurementValue != null
+                    ? formatMeasurementValue(photo.measurementValue, measurement.unit)
+                    : "—"}
+                </Text>
+              ) : null}
+            </View>
             {canRemove ? (
               <TouchableOpacity onPress={() => onRemove(idx)} hitSlop={6}>
                 <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
@@ -390,12 +453,28 @@ function BackupBadge({
   return <View style={styles.backupBadgeWrap}>{Inner}</View>;
 }
 
-function PhotoItem({ photo }: { photo: TrackPhoto }) {
+function PhotoItem({
+  photo,
+  measurement,
+  onPress,
+}: {
+  photo: TrackPhoto;
+  measurement: Measurement | null;
+  onPress: (photo: TrackPhoto) => void;
+}) {
   const colors = useColors();
   const { resolvePhotoSource, getPhotoBackupStatus, retryPhotoUpload } = useTrack();
   const status = getPhotoBackupStatus(photo);
+  const showValueRow = !!measurement;
   return (
-    <View style={[styles.photoItem, { borderColor: colors.border }]}>
+    <Pressable
+      testID={`photo-item-${photo.id}`}
+      onPress={() => onPress(photo)}
+      style={({ pressed }) => [
+        styles.photoItem,
+        { borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+      ]}
+    >
       <View>
         <Image
           source={{ uri: resolvePhotoSource(photo) }}
@@ -410,6 +489,34 @@ function PhotoItem({ photo }: { photo: TrackPhoto }) {
             void retryPhotoUpload(photo.id);
           }}
         />
+        {showValueRow ? (
+          <View
+            testID={`photo-value-badge-${photo.id}`}
+            style={[
+              styles.photoValueBadge,
+              {
+                backgroundColor:
+                  photo.measurementValue != null
+                    ? colors.primary + "E6"
+                    : "rgba(0,0,0,0.55)",
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.photoValueText,
+                {
+                  color: photo.measurementValue != null ? "#000" : "#fff",
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {photo.measurementValue != null
+                ? formatMeasurementValue(photo.measurementValue, measurement!.unit)
+                : `Add ${measurement!.label.toLowerCase()}`}
+            </Text>
+          </View>
+        ) : null}
       </View>
       <View style={styles.photoMeta}>
         <Ionicons name="time-outline" size={12} color={colors.mutedForeground} />
@@ -425,7 +532,7 @@ function PhotoItem({ photo }: { photo: TrackPhoto }) {
           </View>
         )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -492,12 +599,22 @@ export default function TrackDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { tracks, deleteTrack, getTrackPhotos, resolvePhotoSource } = useTrack();
+  const {
+    tracks,
+    deleteTrack,
+    getTrackPhotos,
+    resolvePhotoSource,
+    updateTrackMeasurement,
+    updatePhotoMeasurement,
+  } = useTrack();
   const shareRef = useRef<ViewShot | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState<TrackPhoto | null>(null);
 
   const track = tracks.find((t) => t.id === id);
   const trackPhotos = getTrackPhotos(id ?? "");
+  const measurement = track?.measurement ?? null;
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
@@ -700,6 +817,16 @@ export default function TrackDetailScreen() {
             />
           </TouchableOpacity>
         ) : null}
+        <TouchableOpacity
+          testID="track-settings-button"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setSettingsOpen(true);
+          }}
+          style={styles.headerIconBtn}
+        >
+          <Ionicons name="options-outline" size={20} color={colors.foreground} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={handleDelete} style={styles.headerIconBtn}>
           <Ionicons name="trash-outline" size={20} color={colors.destructive} />
         </TouchableOpacity>
@@ -718,7 +845,20 @@ export default function TrackDetailScreen() {
       <FlatList
         data={trackPhotos}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PhotoItem photo={item} />}
+        renderItem={({ item }) => (
+          <PhotoItem
+            photo={item}
+            measurement={measurement}
+            onPress={(p) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (measurement) {
+                setEditingPhoto(p);
+              } else {
+                setSettingsOpen(true);
+              }
+            }}
+          />
+        )}
         contentContainerStyle={[styles.listContent, { paddingBottom: bottomPadding + 100 }]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={true}
@@ -801,6 +941,7 @@ export default function TrackDetailScreen() {
                     resolveSrc={resolvePhotoSource}
                     onChangeLeft={() => setPickerTarget({ kind: "slider-left" })}
                     onChangeRight={() => setPickerTarget({ kind: "slider-right" })}
+                    measurement={measurement}
                   />
                 ) : (
                   <GridCompare
@@ -811,9 +952,22 @@ export default function TrackDetailScreen() {
                     onAdd={() => setPickerTarget({ kind: "grid-add" })}
                     canAdd={gridPhotos.length < MAX_GRID_PHOTOS && gridPhotos.length < trackPhotos.length}
                     canRemove={gridPhotos.length > 2}
+                    measurement={measurement}
                   />
                 )}
               </View>
+            ) : null}
+
+            {/* Measurement panel */}
+            {measurement ? (
+              <MeasurementPanel
+                measurement={measurement}
+                photos={trackPhotos}
+                onEditSettings={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSettingsOpen(true);
+                }}
+              />
             ) : null}
 
             {/* Timeline header */}
@@ -870,6 +1024,30 @@ export default function TrackDetailScreen() {
         excludeIds={pickerExcludeIds()}
         title={pickerTitle()}
       />
+
+      <TrackMeasurementSettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        measurement={measurement}
+        onSave={async (next) => {
+          if (!track) return;
+          await updateTrackMeasurement(track.id, next);
+        }}
+      />
+
+      {measurement ? (
+        <EditPhotoMeasurementSheet
+          visible={editingPhoto !== null}
+          onClose={() => setEditingPhoto(null)}
+          photo={editingPhoto}
+          measurement={measurement}
+          resolveSrc={resolvePhotoSource}
+          onSave={async (value) => {
+            if (!editingPhoto) return;
+            await updatePhotoMeasurement(editingPhoto.id, value);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -1052,6 +1230,43 @@ const styles = StyleSheet.create({
   swapChipDate: {
     flex: 1,
     fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  swapChipValue: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+  },
+  compareDelta: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  compareDeltaText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  gridTileValue: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+    marginTop: 1,
+  },
+  photoValueBadge: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    maxWidth: "75%",
+  },
+  photoValueText: {
+    fontSize: 11,
     fontFamily: "Inter_600SemiBold",
   },
   gridContent: {

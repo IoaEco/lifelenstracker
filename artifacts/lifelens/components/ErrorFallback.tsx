@@ -26,6 +26,22 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleRestart = async () => {
+    if (Platform.OS === "web") {
+      // reloadAppAsync from expo is not supported on web. Do a true page
+      // reload so the broken render tree is rebuilt from scratch instead of
+      // re-throwing the same error after resetError().
+      try {
+        if (typeof window !== "undefined" && window.location) {
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // fall through to resetError below
+      }
+      resetError();
+      return;
+    }
+
     try {
       await reloadAppAsync();
     } catch (restartError) {

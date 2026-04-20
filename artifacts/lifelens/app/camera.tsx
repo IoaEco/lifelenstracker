@@ -246,6 +246,10 @@ export default function CameraScreen() {
             setCaptureError("Please enter a valid number.");
             return;
           }
+          if (parsed <= 0) {
+            setCaptureError("Please enter a positive number.");
+            return;
+          }
           value = parsed;
         }
         await addPhoto({

@@ -74,6 +74,10 @@ export function EditPhotoMeasurementSheet({
       setError("Please enter a valid number.");
       return;
     }
+    if (parsed <= 0) {
+      setError("Please enter a positive number.");
+      return;
+    }
     void commit(parsed);
   }
 

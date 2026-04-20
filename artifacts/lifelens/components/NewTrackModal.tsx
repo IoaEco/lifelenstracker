@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NewCategoryModal } from "@/components/NewCategoryModal";
+import { UnitPicker } from "@/components/UnitPicker";
 import type { IoniconsName } from "@/constants/icons";
 import { useColors } from "@/hooks/useColors";
 import { useCategories } from "@/context/CategoriesContext";
@@ -232,23 +233,12 @@ export function NewTrackModal({ visible, onClose }: Props) {
                 maxLength={30}
                 returnKeyType="done"
               />
-              <TextInput
-                testID="measurement-unit-input"
-                style={[
-                  styles.input,
-                  styles.measurementUnitInput,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    color: colors.foreground,
-                  },
-                ]}
-                placeholder="Unit (kg)"
-                placeholderTextColor={colors.mutedForeground}
+            </View>
+            <View style={{ marginTop: 10 }}>
+              <UnitPicker
+                testID="measurement-unit-picker"
                 value={measurementUnit}
-                onChangeText={setMeasurementUnit}
-                maxLength={10}
-                returnKeyType="done"
+                onChange={setMeasurementUnit}
               />
             </View>
           </View>

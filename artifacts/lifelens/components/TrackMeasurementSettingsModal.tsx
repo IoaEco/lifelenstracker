@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { Measurement } from "@/context/TrackContext";
 import { useColors } from "@/hooks/useColors";
+import { UnitPicker } from "@/components/UnitPicker";
 
 interface Props {
   visible: boolean;
@@ -149,21 +150,10 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                   UNIT (OPTIONAL)
                 </Text>
-                <TextInput
+                <UnitPicker
                   testID="settings-measurement-unit"
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                      color: colors.foreground,
-                    },
-                  ]}
                   value={unit}
-                  onChangeText={setUnit}
-                  placeholder="kg"
-                  placeholderTextColor={colors.mutedForeground}
-                  maxLength={10}
+                  onChange={setUnit}
                 />
               </View>
 

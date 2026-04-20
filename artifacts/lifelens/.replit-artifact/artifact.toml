@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "LifeLens"
+version = "1.0.0"
+id = "artifacts/lifelens"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 18821
+
+[services.development]
+run = "pnpm --filter @workspace/lifelens run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lifelens", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/lifelens", "run", "serve" ]
+
+[services.env]
+PORT = "18821"
+BASE_PATH = "/"

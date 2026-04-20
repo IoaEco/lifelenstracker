@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { useColors } from "@/hooks/useColors";
 
 export default function SignInScreen() {
@@ -70,6 +71,8 @@ export default function SignInScreen() {
       </View>
 
       <View style={styles.form}>
+        <SocialAuthButtons mode="sign-in" />
+
         <Text style={[styles.label, { color: colors.mutedForeground }]}>
           Email address
         </Text>

@@ -23,11 +23,19 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ViewShot, { captureRef } from "react-native-view-shot";
 
 import { useColors } from "@/hooks/useColors";
 import { MeasurementPanel, formatMeasurementValue, formatDelta } from "@/components/MeasurementPanel";
+import { ZoomablePhotoModal } from "@/components/ZoomablePhotoModal";
 import { EditPhotoMeasurementSheet } from "@/components/EditPhotoMeasurementSheet";
 import { MeasureFromPhotoModal } from "@/components/MeasureFromPhotoModal";
 import { TrackMeasurementSettingsModal } from "@/components/TrackMeasurementSettingsModal";
@@ -113,47 +121,165 @@ function BeforeAfterSlider({
     })
   ).current;
 
-  const sliderContainerRef = useRef<View>(null);
+  const sliderContainerRef = useRef<Animated.View>(null);
   const updateContainerLeft = () => {
-    sliderContainerRef.current?.measureInWindow((x) => {
+    (sliderContainerRef.current as unknown as View | null)?.measureInWindow((x) => {
       containerLeftRef.current = x;
     });
   };
 
+  // Pinch-to-zoom: both images share the same transform so the slider
+  // divider keeps splitting the same view of the scene.
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const savedTx = useSharedValue(0);
+  const savedTy = useSharedValue(0);
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  const clampTranslate = (value: number, axisExtent: number, s: number) => {
+    "worklet";
+    const max = Math.max(0, (axisExtent * (s - 1)) / 2);
+    return Math.max(-max, Math.min(max, value));
+  };
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => {
+      const next = Math.max(1, Math.min(5, savedScale.value * e.scale));
+      scale.value = next;
+      tx.value = clampTranslate(savedTx.value, imageWidth, next);
+      ty.value = clampTranslate(savedTy.value, imageHeight, next);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
+      runOnJS(setIsZoomed)(scale.value > 1.001);
+    });
+
+  // Require 2 fingers for pan so the divider's single-finger PanResponder
+  // continues to work without conflict.
+  const pan = Gesture.Pan()
+    .minPointers(2)
+    .onUpdate((e) => {
+      if (scale.value <= 1.001) return;
+      tx.value = clampTranslate(savedTx.value + e.translationX, imageWidth, scale.value);
+      ty.value = clampTranslate(savedTy.value + e.translationY, imageHeight, scale.value);
+    })
+    .onEnd(() => {
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1.001) {
+        scale.value = withTiming(1, { duration: 180 });
+        tx.value = withTiming(0, { duration: 180 });
+        ty.value = withTiming(0, { duration: 180 });
+        savedScale.value = 1;
+        savedTx.value = 0;
+        savedTy.value = 0;
+        runOnJS(setIsZoomed)(false);
+      } else {
+        scale.value = withTiming(2.5, { duration: 180 });
+        savedScale.value = 2.5;
+        runOnJS(setIsZoomed)(true);
+      }
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinch, pan);
+
+  const transformStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: tx.value },
+      { translateY: ty.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  function resetZoom() {
+    scale.value = withTiming(1, { duration: 180 });
+    tx.value = withTiming(0, { duration: 180 });
+    ty.value = withTiming(0, { duration: 180 });
+    savedScale.value = 1;
+    savedTx.value = 0;
+    savedTy.value = 0;
+    setIsZoomed(false);
+  }
+
   return (
     <View style={{ alignItems: "center" }}>
-      <View
-        ref={sliderContainerRef}
-        onLayout={updateContainerLeft}
-        style={[styles.sliderContainer, { width: imageWidth, height: imageHeight }]}
-      >
-        <Image
-          source={resolveSrc(leftPhoto)}
-          style={[styles.sliderImageBase, { width: imageWidth, height: imageHeight }]}
-          contentFit="cover"
-        />
-        <View
-          style={[
-            styles.sliderOverlay,
-            { width: imageWidth * sliderPos, height: imageHeight, overflow: "hidden" },
-          ]}
+      <GestureDetector gesture={composedGesture}>
+        <Animated.View
+          ref={sliderContainerRef}
+          onLayout={updateContainerLeft}
+          style={[styles.sliderContainer, { width: imageWidth, height: imageHeight }]}
         >
-          <Image
-            source={resolveSrc(rightPhoto)}
-            style={{ width: imageWidth, height: imageHeight }}
-            contentFit="cover"
-          />
-        </View>
-        <View
-          style={[styles.sliderDivider, { left: imageWidth * sliderPos - 1, height: imageHeight, backgroundColor: "#fff" }]}
-          {...panRef.panHandlers}
-        >
-          <View style={[styles.sliderHandle, { backgroundColor: "#fff" }]}>
-            <Ionicons name="chevron-back" size={10} color="#000" />
-            <Ionicons name="chevron-forward" size={10} color="#000" />
+          <GestureDetector gesture={doubleTap}>
+            <Animated.View
+              style={[
+                StyleSheet.absoluteFillObject,
+                { width: imageWidth, height: imageHeight },
+              ]}
+            >
+              <Animated.View
+                style={[
+                  { width: imageWidth, height: imageHeight },
+                  transformStyle,
+                ]}
+              >
+                <Image
+                  source={resolveSrc(leftPhoto)}
+                  style={[styles.sliderImageBase, { width: imageWidth, height: imageHeight }]}
+                  contentFit="cover"
+                />
+              </Animated.View>
+              <View
+                style={[
+                  styles.sliderOverlay,
+                  { width: imageWidth * sliderPos, height: imageHeight, overflow: "hidden" },
+                ]}
+              >
+                <Animated.View
+                  style={[
+                    { width: imageWidth, height: imageHeight },
+                    transformStyle,
+                  ]}
+                >
+                  <Image
+                    source={resolveSrc(rightPhoto)}
+                    style={{ width: imageWidth, height: imageHeight }}
+                    contentFit="cover"
+                  />
+                </Animated.View>
+              </View>
+            </Animated.View>
+          </GestureDetector>
+          <View
+            style={[styles.sliderDivider, { left: imageWidth * sliderPos - 1, height: imageHeight, backgroundColor: "#fff" }]}
+            {...panRef.panHandlers}
+          >
+            <View style={[styles.sliderHandle, { backgroundColor: "#fff" }]}>
+              <Ionicons name="chevron-back" size={10} color="#000" />
+              <Ionicons name="chevron-forward" size={10} color="#000" />
+            </View>
           </View>
-        </View>
-      </View>
+          {isZoomed ? (
+            <TouchableOpacity
+              testID="slider-reset-zoom"
+              onPress={resetZoom}
+              style={styles.sliderResetBtn}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="contract-outline" size={14} color="#fff" />
+              <Text style={styles.sliderResetText}>Reset zoom</Text>
+            </TouchableOpacity>
+          ) : null}
+        </Animated.View>
+      </GestureDetector>
 
       {/* Swappable date chips below the slider so they don't conflict with the drag handle */}
       <View style={[styles.swapChipRow, { width: imageWidth }]}>
@@ -233,6 +359,7 @@ function GridCompare({
   onReplace,
   onRemove,
   onAdd,
+  onZoom,
   canAdd,
   canRemove,
   measurement,
@@ -242,6 +369,7 @@ function GridCompare({
   onReplace: (index: number) => void;
   onRemove: (index: number) => void;
   onAdd: () => void;
+  onZoom: (photo: TrackPhoto) => void;
   canAdd: boolean;
   canRemove: boolean;
   measurement: Measurement | null;
@@ -261,7 +389,11 @@ function GridCompare({
           key={photo.id}
           style={[styles.gridTile, { width: tileWidth, borderColor: colors.border }]}
         >
-          <Pressable onPress={() => onReplace(idx)} style={{ width: tileWidth, height: tileHeight }}>
+          <Pressable
+            testID={`grid-tile-${idx}`}
+            onPress={() => onZoom(photo)}
+            style={{ width: tileWidth, height: tileHeight }}
+          >
             <Image
               source={resolveSrc(photo)}
               style={{ width: tileWidth, height: tileHeight, backgroundColor: colors.muted }}
@@ -269,6 +401,9 @@ function GridCompare({
             />
             <View style={styles.gridIndexBadge}>
               <Text style={styles.gridIndexText}>{idx + 1}</Text>
+            </View>
+            <View style={styles.gridZoomBadge} pointerEvents="none">
+              <Ionicons name="expand-outline" size={12} color="#fff" />
             </View>
           </Pressable>
           <View style={[styles.gridTileMeta, { backgroundColor: colors.card }]}>
@@ -287,6 +422,15 @@ function GridCompare({
                 </Text>
               ) : null}
             </View>
+            <TouchableOpacity
+              testID={`grid-swap-${idx}`}
+              onPress={() => onReplace(idx)}
+              hitSlop={6}
+              style={styles.gridSwapBtn}
+              accessibilityLabel="Swap photo"
+            >
+              <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+            </TouchableOpacity>
             {canRemove ? (
               <TouchableOpacity onPress={() => onRemove(idx)} hitSlop={6}>
                 <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
@@ -708,6 +852,7 @@ export default function TrackDetailScreen() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<TrackPhoto | null>(null);
   const [measuringPhoto, setMeasuringPhoto] = useState<TrackPhoto | null>(null);
+  const [zoomPhoto, setZoomPhoto] = useState<TrackPhoto | null>(null);
 
   const track = tracks.find((t) => t.id === id);
   const trackPhotos = getTrackPhotos(id ?? "");
@@ -1341,8 +1486,8 @@ export default function TrackDetailScreen() {
 
                 <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
                   {compareMode === "slider"
-                    ? "Drag the divider, or tap a date below to pick a different photo."
-                    : `Scroll to see all ${gridPhotos.length} photos. Tap a tile to swap, or add up to ${MAX_GRID_PHOTOS}.`}
+                    ? "Drag the divider, pinch to zoom in, or tap a date below to swap photos."
+                    : `Tap a tile to zoom in. Use the swap icon to pick a different photo (up to ${MAX_GRID_PHOTOS}).`}
                 </Text>
 
                 {compareMode === "slider" ? (
@@ -1361,6 +1506,10 @@ export default function TrackDetailScreen() {
                     onReplace={(index) => setPickerTarget({ kind: "grid-replace", index })}
                     onRemove={handleRemoveGrid}
                     onAdd={() => setPickerTarget({ kind: "grid-add" })}
+                    onZoom={(p) => {
+                      Haptics.selectionAsync();
+                      setZoomPhoto(p);
+                    }}
                     canAdd={gridPhotos.length < MAX_GRID_PHOTOS && gridPhotos.length < trackPhotos.length}
                     canRemove={gridPhotos.length > 2}
                     measurement={measurement}
@@ -1467,6 +1616,13 @@ export default function TrackDetailScreen() {
           }}
         />
       ) : null}
+
+      <ZoomablePhotoModal
+        visible={zoomPhoto !== null}
+        onClose={() => setZoomPhoto(null)}
+        source={zoomPhoto ? resolvePhotoSource(zoomPhoto) : null}
+        caption={zoomPhoto ? formatDateTime(zoomPhoto.takenAt) : ""}
+      />
 
       {measurement && track ? (
         <MeasureFromPhotoModal
@@ -2026,5 +2182,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
+  },
+  sliderResetBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  sliderResetText: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+  },
+  gridZoomBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gridSwapBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
 });

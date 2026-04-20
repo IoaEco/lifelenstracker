@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
 import * as Haptics from "expo-haptics";
@@ -39,6 +40,15 @@ import {
 } from "@/context/TrackContext";
 
 const MAX_GRID_PHOTOS = 6;
+const COMPARE_PREFS_PREFIX = "lifelens:trackCompare:";
+
+type CompareModeStored = "slider" | "grid";
+type StoredComparePrefs = {
+  mode?: CompareModeStored;
+  leftId?: string | null;
+  rightId?: string | null;
+  gridIds?: string[];
+};
 
 function formatDateTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -712,11 +722,51 @@ export default function TrackDetailScreen() {
   const [rightId, setRightId] = useState<string | null>(null);
   const [gridIds, setGridIds] = useState<string[]>([]);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+  const [prefsHydrated, setPrefsHydrated] = useState(false);
 
   const photoIdsKey = trackPhotos.map((p) => p.id).join(",");
 
+  // Restore the last comparison selection for this track from local storage
+  // before we apply the default first/last fallback. We gate the
+  // initialization effect below on `prefsHydrated` so we don't clobber the
+  // restored values.
+  useEffect(() => {
+    if (!id) return;
+    setPrefsHydrated(false);
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(COMPARE_PREFS_PREFIX + id);
+        if (cancelled || !raw) return;
+        const parsed = JSON.parse(raw) as StoredComparePrefs;
+        if (parsed && typeof parsed === "object") {
+          if (parsed.mode === "slider" || parsed.mode === "grid") {
+            setCompareMode(parsed.mode);
+          }
+          if (typeof parsed.leftId === "string") setLeftId(parsed.leftId);
+          if (typeof parsed.rightId === "string") setRightId(parsed.rightId);
+          if (Array.isArray(parsed.gridIds)) {
+            setGridIds(
+              parsed.gridIds.filter(
+                (x): x is string => typeof x === "string",
+              ),
+            );
+          }
+        }
+      } catch {
+        // ignore corrupt prefs
+      } finally {
+        if (!cancelled) setPrefsHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   // Initialize / repair selections whenever the underlying photo set changes.
   useEffect(() => {
+    if (!prefsHydrated) return;
     if (trackPhotos.length < 2) {
       setLeftId(null);
       setRightId(null);
@@ -743,7 +793,23 @@ export default function TrackDetailScreen() {
       if (firstId !== lastId) return [firstId, lastId];
       return filtered;
     });
-  }, [photoIdsKey, trackPhotos.length]);
+  }, [photoIdsKey, trackPhotos.length, prefsHydrated]);
+
+  // Persist the comparison selection per-track so it survives navigation and
+  // app reloads. Only writes after the initial hydration to avoid clobbering
+  // saved prefs with default state on mount.
+  useEffect(() => {
+    if (!prefsHydrated || !id) return;
+    const payload: StoredComparePrefs = {
+      mode: compareMode,
+      leftId,
+      rightId,
+      gridIds,
+    };
+    AsyncStorage.setItem(COMPARE_PREFS_PREFIX + id, JSON.stringify(payload)).catch(
+      () => {},
+    );
+  }, [prefsHydrated, id, compareMode, leftId, rightId, gridIds]);
 
   const photoById = useMemo(() => {
     const m = new Map<string, TrackPhoto>();

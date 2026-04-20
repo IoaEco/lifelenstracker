@@ -22,7 +22,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ViewShot, { captureRef } from "react-native-view-shot";
 
 import { useColors } from "@/hooks/useColors";
-import { type TrackPhoto, useTrack } from "@/context/TrackContext";
+import {
+  type PhotoBackupStatus,
+  type TrackPhoto,
+  useTrack,
+} from "@/context/TrackContext";
 
 const MAX_GRID_PHOTOS = 6;
 
@@ -330,16 +334,83 @@ function PhotoPickerModal({
   );
 }
 
+function BackupBadge({
+  status,
+  onRetry,
+  colors,
+}: {
+  status: PhotoBackupStatus;
+  onRetry: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  if (status === "local-only") return null;
+
+  let icon: React.ComponentProps<typeof Ionicons>["name"] = "cloud-outline";
+  let label = "";
+  let bg = "rgba(0,0,0,0.55)";
+  let fg = "#fff";
+
+  if (status === "backed-up") {
+    icon = "cloud-done";
+    label = "Backed up";
+    bg = "rgba(16, 122, 87, 0.85)";
+  } else if (status === "uploading") {
+    icon = "cloud-upload";
+    label = "Uploading…";
+    bg = "rgba(0,0,0,0.65)";
+  } else if (status === "failed") {
+    icon = "cloud-offline";
+    label = "Retry backup";
+    bg = colors.destructive;
+  } else if (status === "pending") {
+    icon = "cloud-outline";
+    label = "Waiting";
+    bg = "rgba(0,0,0,0.55)";
+  }
+
+  const isInteractive = status === "failed";
+  const Inner = (
+    <View style={[styles.backupBadge, { backgroundColor: bg }]}>
+      <Ionicons name={icon} size={12} color={fg} />
+      <Text style={[styles.backupBadgeText, { color: fg }]}>{label}</Text>
+    </View>
+  );
+  if (isInteractive) {
+    return (
+      <TouchableOpacity
+        testID="photo-retry-backup"
+        onPress={onRetry}
+        activeOpacity={0.8}
+        style={styles.backupBadgeWrap}
+      >
+        {Inner}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={styles.backupBadgeWrap}>{Inner}</View>;
+}
+
 function PhotoItem({ photo }: { photo: TrackPhoto }) {
   const colors = useColors();
-  const { resolvePhotoSource } = useTrack();
+  const { resolvePhotoSource, getPhotoBackupStatus, retryPhotoUpload } = useTrack();
+  const status = getPhotoBackupStatus(photo);
   return (
     <View style={[styles.photoItem, { borderColor: colors.border }]}>
-      <Image
-        source={{ uri: resolvePhotoSource(photo) }}
-        style={[styles.photoImage, { backgroundColor: colors.muted }]}
-        contentFit="cover"
-      />
+      <View>
+        <Image
+          source={{ uri: resolvePhotoSource(photo) }}
+          style={[styles.photoImage, { backgroundColor: colors.muted }]}
+          contentFit="cover"
+        />
+        <BackupBadge
+          status={status}
+          colors={colors}
+          onRetry={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            void retryPhotoUpload(photo.id);
+          }}
+        />
+      </View>
       <View style={styles.photoMeta}>
         <Ionicons name="time-outline" size={12} color={colors.mutedForeground} />
         <Text style={[styles.photoDate, { color: colors.mutedForeground }]}>
@@ -1119,6 +1190,23 @@ const styles = StyleSheet.create({
   tiltText: {
     fontSize: 10,
     fontFamily: "Inter_400Regular",
+  },
+  backupBadgeWrap: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+  },
+  backupBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  backupBadgeText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
   },
   cameraButtonWrap: {
     position: "absolute",

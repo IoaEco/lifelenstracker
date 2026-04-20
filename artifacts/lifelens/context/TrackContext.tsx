@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/expo";
 import { File } from "expo-file-system";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import React, {
   createContext,
   useCallback,
@@ -44,6 +45,21 @@ export interface TrackPhoto {
 
 export type SyncStatus = "idle" | "syncing" | "error";
 
+export type PhotoBackupStatus =
+  | "uploading"
+  | "backed-up"
+  | "failed"
+  | "pending"
+  | "local-only";
+
+export interface BackupCounts {
+  total: number;
+  backedUp: number;
+  uploading: number;
+  failed: number;
+  pending: number;
+}
+
 interface TrackContextType {
   tracks: Track[];
   photos: TrackPhoto[];
@@ -52,6 +68,10 @@ interface TrackContextType {
   lastSyncError: string | null;
   lastSyncedAt: string | null;
   isCloudEnabled: boolean;
+  backupCounts: BackupCounts;
+  getPhotoBackupStatus: (photo: TrackPhoto) => PhotoBackupStatus;
+  retryPhotoUpload: (photoId: string) => Promise<void>;
+  retryFailedUploads: () => Promise<void>;
   addTrack: (track: Omit<Track, "id" | "createdAt" | "updatedAt">) => Promise<Track>;
   deleteTrack: (trackId: string) => Promise<void>;
   addPhoto: (
@@ -197,10 +217,35 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
+  const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
+  const [failedIds, setFailedIds] = useState<Map<string, string>>(new Map());
+
   const tracksRef = useRef<Track[]>([]);
   const photosRef = useRef<TrackPhoto[]>([]);
+  const uploadingIdsRef = useRef<Set<string>>(new Set());
+  const failedIdsRef = useRef<Map<string, string>>(new Map());
   tracksRef.current = tracks;
   photosRef.current = photos;
+  uploadingIdsRef.current = uploadingIds;
+  failedIdsRef.current = failedIds;
+
+  const markUploading = useCallback((id: string, on: boolean) => {
+    setUploadingIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const markFailed = useCallback((id: string, message: string | null) => {
+    setFailedIds((prev) => {
+      const next = new Map(prev);
+      if (message) next.set(id, message);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -263,14 +308,64 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveTracks = useCallback(async (updated: Track[]) => {
+    tracksRef.current = updated;
     await AsyncStorage.setItem(TRACKS_KEY, JSON.stringify(updated));
     setTracks(updated);
   }, []);
 
   const savePhotos = useCallback(async (updated: TrackPhoto[]) => {
+    photosRef.current = updated;
     await AsyncStorage.setItem(PHOTOS_KEY, JSON.stringify(updated));
     setPhotos(updated);
   }, []);
+
+  const uploadOne = useCallback(
+    async (photo: TrackPhoto): Promise<boolean> => {
+      if (uploadingIdsRef.current.has(photo.id)) return false;
+      markUploading(photo.id, true);
+      try {
+        const objectPath = await uploadPhotoBytes(photo.uri, getToken);
+        const ts = nowIso();
+        const updated = photosRef.current.map((p) =>
+          p.id === photo.id ? { ...p, objectPath, updatedAt: ts } : p,
+        );
+        await savePhotos(updated);
+        markFailed(photo.id, null);
+        return true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Upload failed";
+        console.warn("Upload failed for photo", photo.id, err);
+        markFailed(photo.id, message);
+        return false;
+      } finally {
+        markUploading(photo.id, false);
+      }
+    },
+    [getToken, savePhotos, markUploading, markFailed],
+  );
+
+  const uploadPending = useCallback(
+    async (photoIds?: string[]): Promise<{ uploaded: number; failed: number }> => {
+      const idSet = photoIds ? new Set(photoIds) : null;
+      const candidates = photosRef.current.filter(
+        (p) =>
+          !p.deleted &&
+          !p.objectPath &&
+          p.uri &&
+          !p.uri.startsWith("http") &&
+          (idSet ? idSet.has(p.id) : true),
+      );
+      let uploaded = 0;
+      let failed = 0;
+      for (const photo of candidates) {
+        const ok = await uploadOne(photo);
+        if (ok) uploaded++;
+        else failed++;
+      }
+      return { uploaded, failed };
+    },
+    [uploadOne],
+  );
 
   const syncNow = useCallback(async () => {
     if (!isSignedIn) return;
@@ -278,26 +373,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     setLastSyncError(null);
     try {
       // 1. Upload bytes for any local photos that are not in the cloud yet.
-      const pendingUploads = photosRef.current.filter(
-        (p) => !p.deleted && !p.objectPath && p.uri && !p.uri.startsWith("http"),
-      );
-      const uploadedById = new Map<string, string>();
-      for (const photo of pendingUploads) {
-        try {
-          const objectPath = await uploadPhotoBytes(photo.uri, getToken);
-          uploadedById.set(photo.id, objectPath);
-        } catch (err) {
-          console.warn("Upload failed for photo", photo.id, err);
-        }
-      }
-      if (uploadedById.size > 0) {
-        const updated = photosRef.current.map((p) =>
-          uploadedById.has(p.id)
-            ? { ...p, objectPath: uploadedById.get(p.id)!, updatedAt: nowIso() }
-            : p,
-        );
-        await savePhotos(updated);
-      }
+      await uploadPending();
 
       // 2. Push everything we have locally to the cloud (server merges by updatedAt).
       const localTracks = tracksRef.current.map(trackToCloud);
@@ -325,7 +401,58 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
       setLastSyncError(message);
       setSyncStatus("error");
     }
-  }, [isSignedIn, getToken, saveTracks, savePhotos]);
+  }, [isSignedIn, getToken, saveTracks, savePhotos, uploadPending]);
+
+  const retryPhotoUpload = useCallback(
+    async (photoId: string) => {
+      if (!isSignedIn) return;
+      const photo = photosRef.current.find((p) => p.id === photoId);
+      if (!photo || photo.deleted || photo.objectPath) return;
+      if (!photo.uri || photo.uri.startsWith("http")) return;
+      await uploadOne(photo);
+    },
+    [isSignedIn, uploadOne],
+  );
+
+  const retryFailedUploads = useCallback(async () => {
+    if (!isSignedIn) return;
+    const ids = Array.from(failedIdsRef.current.keys());
+    if (ids.length === 0) return;
+    await uploadPending(ids);
+  }, [isSignedIn, uploadPending]);
+
+  // Auto-retry failed uploads when device comes back online or app foregrounds.
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const tryAutoRetry = () => {
+      if (failedIdsRef.current.size === 0) return;
+      void retryFailedUploads();
+    };
+
+    const appSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") tryAutoRetry();
+    });
+
+    let wasConnected: boolean | null = null;
+    const netUnsub = NetInfo.addEventListener((state) => {
+      const isConnected = !!state.isConnected;
+      if (wasConnected === false && isConnected) tryAutoRetry();
+      wasConnected = isConnected;
+    });
+
+    let removeOnline: (() => void) | null = null;
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const handler = () => tryAutoRetry();
+      window.addEventListener("online", handler);
+      removeOnline = () => window.removeEventListener("online", handler);
+    }
+
+    return () => {
+      appSub.remove();
+      netUnsub();
+      if (removeOnline) removeOnline();
+    };
+  }, [isSignedIn, retryFailedUploads]);
 
   // Trigger initial sync when the user signs in (or the app boots already signed in).
   useEffect(() => {
@@ -469,6 +596,37 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     return photo.uri;
   }, []);
 
+  const getPhotoBackupStatus = useCallback(
+    (photo: TrackPhoto): PhotoBackupStatus => {
+      if (!isSignedIn) return "local-only";
+      if (photo.objectPath) return "backed-up";
+      if (uploadingIds.has(photo.id)) return "uploading";
+      if (failedIds.has(photo.id)) return "failed";
+      if (photo.uri && !photo.uri.startsWith("http")) return "pending";
+      return "local-only";
+    },
+    [isSignedIn, uploadingIds, failedIds],
+  );
+
+  const backupCounts: BackupCounts = (() => {
+    let total = 0;
+    let backedUp = 0;
+    let uploading = 0;
+    let failed = 0;
+    let pending = 0;
+    if (isSignedIn) {
+      for (const p of photos) {
+        if (p.deleted) continue;
+        total++;
+        if (p.objectPath) backedUp++;
+        else if (uploadingIds.has(p.id)) uploading++;
+        else if (failedIds.has(p.id)) failed++;
+        else if (p.uri && !p.uri.startsWith("http")) pending++;
+      }
+    }
+    return { total, backedUp, uploading, failed, pending };
+  })();
+
   const visibleTracks = tracks.filter((t) => !t.deleted);
 
   return (
@@ -481,6 +639,10 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
         lastSyncError,
         lastSyncedAt,
         isCloudEnabled: !!isSignedIn,
+        backupCounts,
+        getPhotoBackupStatus,
+        retryPhotoUpload,
+        retryFailedUploads,
         addTrack,
         deleteTrack,
         addPhoto,

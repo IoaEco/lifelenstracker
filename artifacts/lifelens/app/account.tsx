@@ -31,11 +31,22 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { isSignedIn, signOut } = useAuth();
   const { user } = useUser();
-  const { syncStatus, lastSyncError, lastSyncedAt, syncNow, tracks, photos } = useTrack();
+  const {
+    syncStatus,
+    lastSyncError,
+    lastSyncedAt,
+    syncNow,
+    tracks,
+    photos,
+    backupCounts,
+    retryFailedUploads,
+  } = useTrack();
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
 
   const totalPhotos = photos.filter((p) => !p.deleted).length;
+  const hasFailures = backupCounts.failed > 0;
+  const isUploading = backupCounts.uploading > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -148,6 +159,78 @@ export default function AccountScreen() {
                   Photos
                 </Text>
               </View>
+            </View>
+
+            <View
+              testID="account-backup-card"
+              style={[
+                styles.syncCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.syncHeader}>
+                <Ionicons
+                  name={
+                    hasFailures
+                      ? "cloud-offline"
+                      : isUploading
+                        ? "cloud-upload"
+                        : "cloud-done"
+                  }
+                  size={18}
+                  color={hasFailures ? colors.destructive : colors.primary}
+                />
+                <Text style={[styles.syncTitle, { color: colors.foreground }]}>
+                  Photo backup
+                </Text>
+              </View>
+              <Text
+                testID="account-backup-summary"
+                style={[styles.syncMeta, { color: colors.mutedForeground }]}
+              >
+                {backupCounts.backedUp} of {backupCounts.total} photos backed up
+              </Text>
+              {(isUploading || backupCounts.pending > 0) && (
+                <Text style={[styles.syncMeta, { color: colors.mutedForeground }]}>
+                  {isUploading
+                    ? `Uploading ${backupCounts.uploading}…`
+                    : `${backupCounts.pending} waiting to upload`}
+                </Text>
+              )}
+              {hasFailures && (
+                <Text style={[styles.syncError, { color: colors.destructive }]}>
+                  {backupCounts.failed} photo
+                  {backupCounts.failed === 1 ? "" : "s"} failed to back up
+                </Text>
+              )}
+              {hasFailures && (
+                <Pressable
+                  testID="account-retry-failed"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    void retryFailedUploads();
+                  }}
+                  disabled={isUploading}
+                  style={({ pressed }) => [
+                    styles.syncBtn,
+                    {
+                      backgroundColor: colors.destructive,
+                      opacity: isUploading ? 0.5 : pressed ? 0.8 : 1,
+                    },
+                  ]}
+                >
+                  {isUploading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="refresh" size={16} color="#fff" />
+                      <Text style={[styles.syncBtnText, { color: "#fff" }]}>
+                        Retry failed uploads
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
             </View>
 
             <View

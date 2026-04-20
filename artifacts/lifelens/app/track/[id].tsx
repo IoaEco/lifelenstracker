@@ -173,7 +173,7 @@ export default function TrackDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={[styles.headerIcon, { backgroundColor: colors.primary + "20" }]}>
-            <Ionicons name={track.iconName as any} size={18} color={colors.primary} />
+            <Ionicons name={track.iconName} size={18} color={colors.primary} />
           </View>
           <Text style={[styles.headerTitle, { color: colors.foreground }]} numberOfLines={1}>
             {track.title}

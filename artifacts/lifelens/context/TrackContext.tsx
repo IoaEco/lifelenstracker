@@ -7,11 +7,13 @@ import React, {
   useState,
 } from "react";
 
+import type { IoniconsName } from "@/constants/icons";
+
 export interface Track {
   id: string;
   title: string;
   description: string;
-  iconName: string;
+  iconName: IoniconsName;
   createdAt: string;
 }
 

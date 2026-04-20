@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -61,7 +60,7 @@ function TrackCard({ track }: { track: Track }) {
     >
       <View style={[styles.iconContainer, { backgroundColor: colors.primary + "20" }]}>
         <Ionicons
-          name={track.iconName as any}
+          name={track.iconName}
           size={26}
           color={colors.primary}
         />

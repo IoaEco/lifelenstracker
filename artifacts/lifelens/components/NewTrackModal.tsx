@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -15,27 +16,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TRACK_ICONS, type IoniconsName } from "@/constants/icons";
 import { useColors } from "@/hooks/useColors";
 import { useTrack } from "@/context/TrackContext";
-
-const TRACK_ICONS = [
-  { name: "body-outline", label: "Body" },
-  { name: "barbell-outline", label: "Fitness" },
-  { name: "flower-outline", label: "Plants" },
-  { name: "home-outline", label: "Home" },
-  { name: "hammer-outline", label: "Build" },
-  { name: "heart-outline", label: "Health" },
-  { name: "leaf-outline", label: "Nature" },
-  { name: "bicycle-outline", label: "Sport" },
-  { name: "restaurant-outline", label: "Diet" },
-  { name: "medkit-outline", label: "Medical" },
-  { name: "camera-outline", label: "Photo" },
-  { name: "book-outline", label: "Study" },
-  { name: "musical-notes-outline", label: "Music" },
-  { name: "walk-outline", label: "Walk" },
-  { name: "analytics-outline", label: "Metrics" },
-  { name: "brush-outline", label: "Art" },
-];
 
 interface Props {
   visible: boolean;
@@ -49,7 +32,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedIcon, setSelectedIcon] = useState("body-outline");
+  const [selectedIcon, setSelectedIcon] = useState<IoniconsName>("body-outline");
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState("");
 
@@ -74,7 +57,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
     }
     setSaving(true);
     try {
-      await addTrack({
+      const newTrack = await addTrack({
         title: title.trim(),
         description: description.trim(),
         iconName: selectedIcon,
@@ -82,6 +65,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       reset();
       onClose();
+      router.push(`/track/${newTrack.id}`);
     } finally {
       setSaving(false);
     }
@@ -218,7 +202,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
                     ]}
                   >
                     <Ionicons
-                      name={icon.name as any}
+                      name={icon.name}
                       size={24}
                       color={isSelected ? colors.primary : colors.mutedForeground}
                     />

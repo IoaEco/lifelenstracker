@@ -164,6 +164,9 @@ function mergeTracks(local: Track[], cloud: CloudTrack[]): Track[] {
     const existing = byId.get(c.id);
     if (!existing || new Date(c.updatedAt) >= new Date(existing.updatedAt)) {
       byId.set(c.id, {
+        // Preserve local-only fields (e.g., lastReferenceId) that are not
+        // round-tripped through the cloud schema.
+        ...(existing ?? {}),
         id: c.id,
         title: c.title,
         description: c.description,

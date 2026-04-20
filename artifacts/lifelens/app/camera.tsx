@@ -4,7 +4,7 @@ import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -16,25 +16,18 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useAccelerometer } from "@/hooks/useAccelerometer";
 import { useTrack } from "@/context/TrackContext";
 
-let Accelerometer: any = null;
-if (Platform.OS !== "web") {
-  try {
-    Accelerometer = require("expo-sensors").Accelerometer;
-  } catch {
-    // ignore
-  }
-}
-
+// Native-only: rule of thirds grid overlay
 function RuleOfThirdsGrid() {
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
@@ -81,11 +74,13 @@ const gridStyles = StyleSheet.create({
   },
 });
 
-function TiltIndicator({ tilt }: { tilt: { x: number; y: number } }) {
-  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-  const dx = clamp(tilt.x * 30, -28, 28);
-  const dy = clamp(-tilt.y * 30, -28, 28);
-  const isLevel = Math.abs(tilt.x) < 0.05 && Math.abs(tilt.y) < 0.05;
+// Native-only: bubble level tilt indicator
+function TiltIndicator({ x, y }: { x: number; y: number }) {
+  const clamp = (v: number, lo: number, hi: number) =>
+    Math.max(lo, Math.min(hi, v));
+  const dx = clamp(x * 30, -28, 28);
+  const dy = clamp(-y * 30, -28, 28);
+  const isLevel = Math.abs(x) < 0.05 && Math.abs(y) < 0.05;
 
   return (
     <View style={tiltStyles.container} pointerEvents="none">
@@ -100,9 +95,7 @@ function TiltIndicator({ tilt }: { tilt: { x: number; y: number } }) {
           ]}
         />
       </View>
-      {isLevel && (
-        <Text style={tiltStyles.levelText}>LEVEL</Text>
-      )}
+      {isLevel ? <Text style={tiltStyles.levelText}>LEVEL</Text> : null}
     </View>
   );
 }
@@ -135,7 +128,7 @@ const tiltStyles = StyleSheet.create({
 });
 
 export default function CameraScreen() {
-  const colors = useColors();
+  useColors(); // keep hook call for consistency
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { trackId } = useLocalSearchParams<{ trackId: string }>();
@@ -143,26 +136,19 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [overlayOpacity, setOverlayOpacity] = useState(0.45);
   const [showGrid, setShowGrid] = useState(true);
-  const [tilt, setTilt] = useState({ x: 0, y: 0, z: 0 });
+  const accel = useAccelerometer();
   const [capturing, setCapturing] = useState(false);
   const [facing, setFacing] = useState<"front" | "back">("back");
   const cameraRef = useRef<CameraView>(null);
   const shutterScale = useSharedValue(1);
 
   const previousPhoto = trackId ? getLatestPhoto(trackId) : null;
+  // Previous-photo overlay is only shown on native (camera overlay requires real camera feed context)
+  const showOverlay =
+    Platform.OS !== "web" && previousPhoto !== null && overlayOpacity > 0;
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
-
-  // Accelerometer subscription
-  useEffect(() => {
-    if (Platform.OS === "web" || !Accelerometer) return;
-    Accelerometer.setUpdateInterval(100);
-    const sub = Accelerometer.addListener((data: { x: number; y: number; z: number }) => {
-      setTilt(data);
-    });
-    return () => sub.remove();
-  }, []);
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current || capturing) return;
@@ -189,27 +175,25 @@ export default function CameraScreen() {
       await addPhoto({
         trackId: trackId ?? "",
         uri: permanentUri,
-        tilt: Platform.OS !== "web" ? tilt : null,
+        tilt: Platform.OS !== "web" ? accel : null,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch (err) {
-      console.error("Capture error:", err);
+    } catch {
+      // capture failed — no-op, user can retry
     } finally {
       setCapturing(false);
     }
-  }, [cameraRef, capturing, trackId, tilt, addPhoto, shutterScale]);
+  }, [cameraRef, capturing, trackId, accel, addPhoto, shutterScale]);
 
   const shutterStyle = useAnimatedStyle(() => ({
     transform: [{ scale: shutterScale.value }],
   }));
 
-  const topPadFull = Platform.OS === "web" ? 67 : insets.top;
-
   if (!permission) {
     return (
-      <View style={[styles.permissionContainer, { backgroundColor: "#000" }]}>
+      <View style={[styles.centered, { backgroundColor: "#000" }]}>
         <ActivityIndicator color="#00D4FF" />
       </View>
     );
@@ -217,11 +201,19 @@ export default function CameraScreen() {
 
   if (!permission.granted) {
     return (
-      <View style={[styles.permissionContainer, { backgroundColor: "#000", paddingTop: topPadFull }]}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { top: topPadFull + 8 }]}>
+      <View
+        style={[
+          styles.centered,
+          { backgroundColor: "#000", paddingTop: topPad },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.closeBtn, { top: topPad + 8 }]}
+        >
           <Ionicons name="close" size={24} color="#fff" />
         </TouchableOpacity>
-        <View style={[styles.permIcon, { backgroundColor: "rgba(0,212,255,0.15)" }]}>
+        <View style={styles.permIcon}>
           <Ionicons name="camera-outline" size={48} color="#00D4FF" />
         </View>
         <Text style={styles.permTitle}>Camera Access Needed</Text>
@@ -239,7 +231,11 @@ export default function CameraScreen() {
         ) : Platform.OS !== "web" ? (
           <TouchableOpacity
             onPress={() => {
-              try { Linking.openSettings(); } catch {}
+              try {
+                Linking.openSettings();
+              } catch {
+                // settings not available
+              }
             }}
             style={styles.permButton}
             activeOpacity={0.8}
@@ -255,14 +251,14 @@ export default function CameraScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: "#000" }]}>
-      {/* Camera View */}
+      {/* Camera */}
       <CameraView
         ref={cameraRef}
         style={[styles.camera, { height: cameraHeight }]}
         facing={facing}
       >
-        {/* Previous Photo Overlay */}
-        {previousPhoto && overlayOpacity > 0 && (
+        {/* Previous photo overlay — native only */}
+        {showOverlay && previousPhoto && (
           <Image
             source={{ uri: previousPhoto.uri }}
             style={[StyleSheet.absoluteFillObject, { opacity: overlayOpacity }]}
@@ -271,15 +267,12 @@ export default function CameraScreen() {
           />
         )}
 
-        {/* Rule of Thirds Grid */}
+        {/* Rule of thirds grid */}
         {showGrid && <RuleOfThirdsGrid />}
 
-        {/* Top Controls */}
+        {/* Top controls */}
         <View style={[styles.topControls, { paddingTop: topPad + 8 }]}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.controlBtn}
-          >
+          <TouchableOpacity onPress={() => router.back()} style={styles.controlBtn}>
             <Ionicons name="close" size={24} color="#fff" />
           </TouchableOpacity>
           <View style={styles.topRight}>
@@ -298,48 +291,44 @@ export default function CameraScreen() {
           </View>
         </View>
 
-        {/* Tilt Indicator (native only) */}
+        {/* Tilt indicator — native only */}
         {Platform.OS !== "web" && (
-          <View style={styles.tiltContainer}>
-            <TiltIndicator tilt={tilt} />
+          <View style={styles.tiltWrap}>
+            <TiltIndicator x={accel.x} y={accel.y} />
           </View>
         )}
       </CameraView>
 
-      {/* Bottom Controls */}
+      {/* Bottom controls */}
       <View style={[styles.bottomControls, { paddingBottom: bottomPad + 16 }]}>
-        {/* Overlay Opacity */}
-        {previousPhoto && (
+        {/* Overlay opacity slider — native only */}
+        {Platform.OS !== "web" && previousPhoto && (
           <View style={styles.opacityRow}>
             <Ionicons name="eye-off-outline" size={16} color="rgba(255,255,255,0.6)" />
             <View style={styles.sliderTrack}>
               <View
                 style={[
                   styles.sliderFill,
-                  {
-                    width: `${overlayOpacity * 100}%`,
-                    backgroundColor: "#00D4FF",
-                  },
+                  { width: `${overlayOpacity * 100}%`, backgroundColor: "#00D4FF" },
                 ]}
               />
               <Pressable
-                style={[styles.sliderHitArea]}
+                style={styles.sliderHitArea}
                 onStartShouldSetResponder={() => true}
                 onMoveShouldSetResponder={() => true}
                 onResponderMove={(e) => {
-                  const { locationX } = e.nativeEvent;
                   const trackWidth = width - 80;
-                  const newVal = Math.max(0, Math.min(1, locationX / trackWidth));
+                  const newVal = Math.max(
+                    0,
+                    Math.min(1, e.nativeEvent.locationX / trackWidth)
+                  );
                   setOverlayOpacity(newVal);
                 }}
               />
               <View
                 style={[
                   styles.sliderThumb,
-                  {
-                    left: `${overlayOpacity * 100}%`,
-                    backgroundColor: "#00D4FF",
-                  },
+                  { left: `${overlayOpacity * 100}%`, backgroundColor: "#00D4FF" },
                 ]}
               />
             </View>
@@ -349,6 +338,12 @@ export default function CameraScreen() {
 
         {!previousPhoto && (
           <Text style={styles.firstPhotoHint}>First photo for this track</Text>
+        )}
+
+        {Platform.OS === "web" && previousPhoto && (
+          <Text style={styles.firstPhotoHint}>
+            Overlay available on iOS & Android
+          </Text>
         )}
 
         {/* Shutter */}
@@ -376,14 +371,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  permissionContainer: {
+  centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 40,
     gap: 16,
   },
-  backButton: {
+  closeBtn: {
     position: "absolute",
     left: 16,
     zIndex: 10,
@@ -393,6 +388,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 28,
+    backgroundColor: "rgba(0,212,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
@@ -448,7 +444,7 @@ const styles = StyleSheet.create({
   controlBtnActive: {
     backgroundColor: "rgba(0,212,255,0.3)",
   },
-  tiltContainer: {
+  tiltWrap: {
     position: "absolute",
     bottom: 16,
     right: 16,

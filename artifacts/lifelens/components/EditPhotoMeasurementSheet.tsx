@@ -25,6 +25,7 @@ interface Props {
   resolveSrc: (p: TrackPhoto) => string;
   onClose: () => void;
   onSave: (value: number | null) => Promise<void>;
+  onMeasureFromPhoto?: () => void;
 }
 
 export function EditPhotoMeasurementSheet({
@@ -34,6 +35,7 @@ export function EditPhotoMeasurementSheet({
   resolveSrc,
   onClose,
   onSave,
+  onMeasureFromPhoto,
 }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -149,6 +151,23 @@ export function EditPhotoMeasurementSheet({
                 <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
               ) : null}
 
+              {onMeasureFromPhoto ? (
+                <TouchableOpacity
+                  testID="edit-photo-measure-button"
+                  onPress={() => {
+                    onMeasureFromPhoto();
+                  }}
+                  style={[styles.measureRow, { borderColor: colors.border }]}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="resize-outline" size={18} color={colors.primary} />
+                  <Text style={[styles.measureText, { color: colors.primary }]}>
+                    Measure from photo
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              ) : null}
+
               <View style={styles.actions}>
                 {photo?.measurementValue != null ? (
                   <TouchableOpacity
@@ -234,6 +253,20 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     gap: 12,
+  },
+  measureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  measureText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
   },
   btn: {
     flex: 1,

@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAccelerometer } from "@/hooks/useAccelerometer";
 import { useTrack } from "@/context/TrackContext";
+import { MeasureFromPhotoModal } from "@/components/MeasureFromPhotoModal";
 
 // Native-only: rule of thirds grid overlay
 function RuleOfThirdsGrid() {
@@ -134,7 +135,7 @@ export default function CameraScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { trackId } = useLocalSearchParams<{ trackId: string }>();
-  const { tracks, getLatestPhoto, addPhoto } = useTrack();
+  const { tracks, getLatestPhoto, addPhoto, updateTrackLastReference } = useTrack();
   const [permission, requestPermission] = useCameraPermissions();
   const [overlayOpacity, setOverlayOpacity] = useState(0.45);
   const [showGrid, setShowGrid] = useState(true);
@@ -146,6 +147,8 @@ export default function CameraScreen() {
   const [pendingTilt, setPendingTilt] = useState<{ x: number; y: number; z: number } | null>(null);
   const [measurementInput, setMeasurementInput] = useState("");
   const [savingPending, setSavingPending] = useState(false);
+  const [measureFromPhotoOpen, setMeasureFromPhotoOpen] = useState(false);
+  const [measuredVisuallyForPending, setMeasuredVisuallyForPending] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const shutterScale = useSharedValue(1);
 
@@ -252,11 +255,13 @@ export default function CameraScreen() {
           }
           value = parsed;
         }
+        const measuredVisually = value != null ? measuredVisuallyForPending : false;
         await addPhoto({
           trackId: trackId ?? "",
           uri: pendingUri,
           tilt: pendingTilt,
           measurementValue: value,
+          measuredVisually,
         });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.back();
@@ -267,7 +272,15 @@ export default function CameraScreen() {
         setSavingPending(false);
       }
     },
-    [pendingUri, pendingTilt, measurementInput, savingPending, addPhoto, trackId],
+    [
+      pendingUri,
+      pendingTilt,
+      measurementInput,
+      savingPending,
+      addPhoto,
+      trackId,
+      measuredVisuallyForPending,
+    ],
   );
 
   const discardPending = useCallback(() => {
@@ -275,6 +288,7 @@ export default function CameraScreen() {
     setPendingTilt(null);
     setMeasurementInput("");
     setCaptureError(null);
+    setMeasuredVisuallyForPending(false);
   }, []);
 
   const shutterStyle = useAnimatedStyle(() => ({
@@ -367,6 +381,7 @@ export default function CameraScreen() {
               onChangeText={(t) => {
                 setMeasurementInput(t);
                 if (captureError) setCaptureError(null);
+                if (measuredVisuallyForPending) setMeasuredVisuallyForPending(false);
               }}
               placeholder="0"
               placeholderTextColor="rgba(255,255,255,0.4)"
@@ -381,6 +396,16 @@ export default function CameraScreen() {
           {captureError ? (
             <Text style={styles.captureError}>{captureError}</Text>
           ) : null}
+          <TouchableOpacity
+            testID="review-measure-button"
+            onPress={() => setMeasureFromPhotoOpen(true)}
+            style={styles.reviewMeasureRow}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="resize-outline" size={16} color="#00D4FF" />
+            <Text style={styles.reviewMeasureText}>Measure from photo</Text>
+            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.5)" />
+          </TouchableOpacity>
           <View style={styles.reviewActions}>
             <TouchableOpacity
               testID="review-skip-button"
@@ -412,6 +437,27 @@ export default function CameraScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <MeasureFromPhotoModal
+          visible={measureFromPhotoOpen}
+          photoUri={pendingUri}
+          measurementLabel={measurement.label}
+          measurementUnit={measurement.unit}
+          initialReferenceId={track?.lastReferenceId ?? null}
+          onClose={() => setMeasureFromPhotoOpen(false)}
+          onAccept={async ({ value, referenceId }) => {
+            setMeasureFromPhotoOpen(false);
+            setMeasurementInput(String(Number(value.toFixed(2))));
+            setMeasuredVisuallyForPending(true);
+            if (track) {
+              try {
+                await updateTrackLastReference(track.id, referenceId);
+              } catch {
+                // non-fatal
+              }
+            }
+          }}
+        />
       </KeyboardAvoidingView>
     );
   }
@@ -768,5 +814,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
     color: "#000",
+  },
+  reviewMeasureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(0,212,255,0.08)",
+  },
+  reviewMeasureText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#00D4FF",
   },
 });

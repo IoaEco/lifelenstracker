@@ -36,6 +36,7 @@ export interface Track {
   updatedAt: string;
   deleted?: boolean;
   measurement?: Measurement | null;
+  lastReferenceId?: string | null;
 }
 
 export interface TrackPhoto {
@@ -48,6 +49,7 @@ export interface TrackPhoto {
   objectPath?: string | null;
   deleted?: boolean;
   measurementValue?: number | null;
+  measuredVisually?: boolean;
 }
 
 export type SyncStatus = "idle" | "syncing" | "error";
@@ -91,6 +93,11 @@ interface TrackContextType {
   updatePhotoMeasurement: (
     photoId: string,
     value: number | null,
+    options?: { measuredVisually?: boolean },
+  ) => Promise<void>;
+  updateTrackLastReference: (
+    trackId: string,
+    referenceId: string | null,
   ) => Promise<void>;
   deletePhoto: (photoId: string) => Promise<void>;
   getTrackPhotos: (trackId: string) => TrackPhoto[];
@@ -580,15 +587,39 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updatePhotoMeasurement = useCallback(
-    async (photoId: string, value: number | null) => {
+    async (
+      photoId: string,
+      value: number | null,
+      options?: { measuredVisually?: boolean },
+    ) => {
       const ts = nowIso();
       const updated = photosRef.current.map((p) =>
-        p.id === photoId ? { ...p, measurementValue: value, updatedAt: ts } : p,
+        p.id === photoId
+          ? {
+              ...p,
+              measurementValue: value,
+              measuredVisually:
+                value == null
+                  ? false
+                  : options?.measuredVisually ?? p.measuredVisually ?? false,
+              updatedAt: ts,
+            }
+          : p,
       );
       await savePhotos(updated);
       if (isSignedIn) void syncNow();
     },
     [savePhotos, isSignedIn, syncNow],
+  );
+
+  const updateTrackLastReference = useCallback(
+    async (trackId: string, referenceId: string | null) => {
+      const updated = tracksRef.current.map((t) =>
+        t.id === trackId ? { ...t, lastReferenceId: referenceId } : t,
+      );
+      await saveTracks(updated);
+    },
+    [saveTracks],
   );
 
   const deletePhoto = useCallback(
@@ -700,6 +731,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
         deleteTrack,
         addPhoto,
         updatePhotoMeasurement,
+        updateTrackLastReference,
         deletePhoto,
         getTrackPhotos,
         getLatestPhoto,

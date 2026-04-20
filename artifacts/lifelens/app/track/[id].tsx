@@ -24,6 +24,7 @@ import ViewShot, { captureRef } from "react-native-view-shot";
 import { useColors } from "@/hooks/useColors";
 import { MeasurementPanel, formatMeasurementValue, formatDelta } from "@/components/MeasurementPanel";
 import { EditPhotoMeasurementSheet } from "@/components/EditPhotoMeasurementSheet";
+import { MeasureFromPhotoModal } from "@/components/MeasureFromPhotoModal";
 import { TrackMeasurementSettingsModal } from "@/components/TrackMeasurementSettingsModal";
 import type { Measurement } from "@/context/TrackContext";
 import {
@@ -502,19 +503,29 @@ function PhotoItem({
               },
             ]}
           >
-            <Text
-              style={[
-                styles.photoValueText,
-                {
-                  color: photo.measurementValue != null ? "#000" : "#fff",
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {photo.measurementValue != null
-                ? formatMeasurementValue(photo.measurementValue, measurement!.unit)
-                : `Add ${measurement!.label.toLowerCase()}`}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              {photo.measurementValue != null && photo.measuredVisually ? (
+                <Ionicons
+                  testID={`photo-measured-visually-${photo.id}`}
+                  name="resize-outline"
+                  size={11}
+                  color="#000"
+                />
+              ) : null}
+              <Text
+                style={[
+                  styles.photoValueText,
+                  {
+                    color: photo.measurementValue != null ? "#000" : "#fff",
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {photo.measurementValue != null
+                  ? formatMeasurementValue(photo.measurementValue, measurement!.unit)
+                  : `Add ${measurement!.label.toLowerCase()}`}
+              </Text>
+            </View>
           </View>
         ) : null}
       </View>
@@ -606,11 +617,13 @@ export default function TrackDetailScreen() {
     resolvePhotoSource,
     updateTrackMeasurement,
     updatePhotoMeasurement,
+    updateTrackLastReference,
   } = useTrack();
   const shareRef = useRef<ViewShot | null>(null);
   const [sharing, setSharing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<TrackPhoto | null>(null);
+  const [measuringPhoto, setMeasuringPhoto] = useState<TrackPhoto | null>(null);
 
   const track = tracks.find((t) => t.id === id);
   const trackPhotos = getTrackPhotos(id ?? "");
@@ -1044,7 +1057,35 @@ export default function TrackDetailScreen() {
           resolveSrc={resolvePhotoSource}
           onSave={async (value) => {
             if (!editingPhoto) return;
-            await updatePhotoMeasurement(editingPhoto.id, value);
+            await updatePhotoMeasurement(editingPhoto.id, value, {
+              measuredVisually: false,
+            });
+          }}
+          onMeasureFromPhoto={() => {
+            const target = editingPhoto;
+            if (!target) return;
+            setEditingPhoto(null);
+            setMeasuringPhoto(target);
+          }}
+        />
+      ) : null}
+
+      {measurement && track ? (
+        <MeasureFromPhotoModal
+          visible={measuringPhoto !== null}
+          photoUri={measuringPhoto ? resolvePhotoSource(measuringPhoto) : null}
+          measurementLabel={measurement.label}
+          measurementUnit={measurement.unit}
+          initialReferenceId={track.lastReferenceId ?? null}
+          onClose={() => setMeasuringPhoto(null)}
+          onAccept={async ({ value, referenceId }) => {
+            const target = measuringPhoto;
+            setMeasuringPhoto(null);
+            if (!target) return;
+            await updatePhotoMeasurement(target.id, value, {
+              measuredVisually: true,
+            });
+            await updateTrackLastReference(track.id, referenceId);
           }}
         />
       ) : null}

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
+import * as Sharing from "expo-sharing";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -18,6 +19,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import ViewShot, { captureRef } from "react-native-view-shot";
 
 import { useColors } from "@/hooks/useColors";
 import { type TrackPhoto, useTrack } from "@/context/TrackContext";
@@ -362,11 +364,66 @@ type PickerTarget =
   | { kind: "grid-replace"; index: number }
   | { kind: "grid-add" };
 
+function ShareComposite({
+  innerRef,
+  title,
+  leftPhoto,
+  rightPhoto,
+  resolveSrc,
+}: {
+  innerRef: React.RefObject<ViewShot | null>;
+  title: string;
+  leftPhoto: TrackPhoto;
+  rightPhoto: TrackPhoto;
+  resolveSrc: (p: TrackPhoto) => string;
+}) {
+  const tileWidth = 540;
+  const tileHeight = tileWidth * (4 / 3);
+  return (
+    <View pointerEvents="none" style={styles.shareOffscreen}>
+      <ViewShot ref={innerRef} options={{ format: "jpg", quality: 0.95 }}>
+        <View style={styles.shareCanvas}>
+          <Text style={styles.shareTitle} numberOfLines={2}>
+            {title}
+          </Text>
+          <View style={styles.sharePair}>
+            <View style={styles.shareTile}>
+              <Image
+                source={{ uri: resolveSrc(leftPhoto) }}
+                style={{ width: tileWidth, height: tileHeight, backgroundColor: "#111" }}
+                contentFit="cover"
+              />
+              <View style={styles.shareTileLabel}>
+                <Text style={styles.shareTileLabelText}>BEFORE</Text>
+              </View>
+              <Text style={styles.shareTileDate}>{formatShortDate(leftPhoto.takenAt)}</Text>
+            </View>
+            <View style={styles.shareTile}>
+              <Image
+                source={{ uri: resolveSrc(rightPhoto) }}
+                style={{ width: tileWidth, height: tileHeight, backgroundColor: "#111" }}
+                contentFit="cover"
+              />
+              <View style={styles.shareTileLabel}>
+                <Text style={styles.shareTileLabelText}>AFTER</Text>
+              </View>
+              <Text style={styles.shareTileDate}>{formatShortDate(rightPhoto.takenAt)}</Text>
+            </View>
+          </View>
+          <Text style={styles.shareFooter}>Tracked with LifeLens</Text>
+        </View>
+      </ViewShot>
+    </View>
+  );
+}
+
 export default function TrackDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { tracks, deleteTrack, getTrackPhotos, resolvePhotoSource } = useTrack();
+  const shareRef = useRef<ViewShot | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const track = tracks.find((t) => t.id === id);
   const trackPhotos = getTrackPhotos(id ?? "");
@@ -499,7 +556,49 @@ export default function TrackDetailScreen() {
     setGridIds((prev) => (prev.length > 2 ? prev.filter((_, i) => i !== index) : prev));
   }
 
-  const canShowComparison = trackPhotos.length >= 2 && leftPhoto && rightPhoto;
+  const canShowComparison = trackPhotos.length >= 2 && !!leftPhoto && !!rightPhoto;
+  const canShare = !!leftPhoto && !!rightPhoto;
+
+  async function handleShare() {
+    if (!canShare || !leftPhoto || !rightPhoto || sharing) return;
+    setSharing(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const available = await Sharing.isAvailableAsync();
+      if (!available) {
+        Alert.alert("Sharing unavailable", "Sharing is not available on this device.");
+        return;
+      }
+      // Make sure both photo bitmaps are loaded before snapshotting.
+      try {
+        await Image.prefetch([
+          resolvePhotoSource(leftPhoto),
+          resolvePhotoSource(rightPhoto),
+        ]);
+      } catch {
+        // best-effort; capture will still proceed
+      }
+      await new Promise((r) => setTimeout(r, 200));
+      if (!shareRef.current) {
+        Alert.alert("Share failed", "Image is not ready yet, please try again.");
+        return;
+      }
+      const uri = await captureRef(shareRef.current, {
+        format: "jpg",
+        quality: 0.95,
+      });
+      await Sharing.shareAsync(uri, {
+        mimeType: "image/jpeg",
+        dialogTitle: `${track!.title} — Before & After`,
+        UTI: "public.jpeg",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not generate image";
+      Alert.alert("Share failed", message);
+    } finally {
+      setSharing(false);
+    }
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -516,10 +615,34 @@ export default function TrackDetailScreen() {
             {track.title}
           </Text>
         </View>
-        <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
+        {canShare ? (
+          <TouchableOpacity
+            testID="share-track-button"
+            onPress={handleShare}
+            disabled={sharing}
+            style={[styles.headerIconBtn, sharing && styles.headerIconBtnDisabled]}
+          >
+            <Ionicons
+              name="share-outline"
+              size={22}
+              color={sharing ? colors.mutedForeground : colors.foreground}
+            />
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity onPress={handleDelete} style={styles.headerIconBtn}>
           <Ionicons name="trash-outline" size={20} color={colors.destructive} />
         </TouchableOpacity>
       </View>
+
+      {canShare && leftPhoto && rightPhoto ? (
+        <ShareComposite
+          innerRef={shareRef}
+          title={track.title}
+          leftPhoto={leftPhoto}
+          rightPhoto={rightPhoto}
+          resolveSrc={resolvePhotoSource}
+        />
+      ) : null}
 
       <FlatList
         data={trackPhotos}
@@ -713,8 +836,76 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     flex: 1,
   },
-  deleteBtn: {
+  headerIconBtn: {
     padding: 4,
+  },
+  headerIconBtnDisabled: {
+    opacity: 0.5,
+  },
+  shareOffscreen: {
+    position: "absolute",
+    top: -10000,
+    left: 0,
+    opacity: 0,
+  },
+  shareCanvas: {
+    width: 1140,
+    paddingHorizontal: 30,
+    paddingTop: 28,
+    paddingBottom: 24,
+    backgroundColor: "#0b0b0c",
+    alignItems: "center",
+  },
+  shareTitle: {
+    fontSize: 32,
+    fontFamily: "Inter_700Bold",
+    color: "#ffffff",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  sharePair: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  shareTile: {
+    position: "relative",
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#111",
+  },
+  shareTileLabel: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  shareTileLabelText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.2,
+  },
+  shareTileDate: {
+    position: "absolute",
+    bottom: 14,
+    right: 14,
+    color: "#ffffff",
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  shareFooter: {
+    marginTop: 16,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.5,
   },
   listContent: {
     paddingHorizontal: 16,

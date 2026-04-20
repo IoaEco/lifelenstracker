@@ -2,13 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
+  Modal,
   Platform,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,6 +21,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { type TrackPhoto, useTrack } from "@/context/TrackContext";
+
+const MAX_GRID_PHOTOS = 6;
 
 function formatDateTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -32,64 +36,295 @@ function formatDateTime(dateStr: string): string {
   });
 }
 
+function formatShortDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+type CompareMode = "slider" | "grid";
+
 function BeforeAfterSlider({
-  firstPhoto,
-  lastPhoto,
+  leftPhoto,
+  rightPhoto,
   resolveSrc,
+  onChangeLeft,
+  onChangeRight,
 }: {
-  firstPhoto: TrackPhoto;
-  lastPhoto: TrackPhoto;
+  leftPhoto: TrackPhoto;
+  rightPhoto: TrackPhoto;
   resolveSrc: (p: TrackPhoto) => string;
+  onChangeLeft: () => void;
+  onChangeRight: () => void;
 }) {
   const colors = useColors();
   const { width } = useWindowDimensions();
-  const imageWidth = width - 32;
+  const imageWidth = Math.min(width - 32, 600);
   const imageHeight = imageWidth * (4 / 3);
   const [sliderPos, setSliderPos] = useState(0.5);
+  const containerLeftRef = useRef(0);
+  const containerWidthRef = useRef(imageWidth);
+  containerWidthRef.current = imageWidth;
+
   const panRef = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        const newPos = Math.max(0, Math.min(1, (gestureState.moveX - 16) / imageWidth));
-        setSliderPos(newPos);
+      onPanResponderGrant: (evt) => {
+        const w = containerWidthRef.current || 1;
+        const px = evt.nativeEvent.pageX - containerLeftRef.current;
+        setSliderPos(Math.max(0, Math.min(1, px / w)));
+      },
+      onPanResponderMove: (evt) => {
+        const w = containerWidthRef.current || 1;
+        const px = evt.nativeEvent.pageX - containerLeftRef.current;
+        setSliderPos(Math.max(0, Math.min(1, px / w)));
       },
     })
   ).current;
 
+  const sliderContainerRef = useRef<View>(null);
+  const updateContainerLeft = () => {
+    sliderContainerRef.current?.measureInWindow((x) => {
+      containerLeftRef.current = x;
+    });
+  };
+
   return (
-    <View style={[styles.sliderContainer, { width: imageWidth, height: imageHeight }]}>
-      <Image
-        source={{ uri: resolveSrc(firstPhoto) }}
-        style={[styles.sliderImageBase, { width: imageWidth, height: imageHeight }]}
-        contentFit="cover"
-      />
+    <View style={{ alignItems: "center" }}>
       <View
-        style={[
-          styles.sliderOverlay,
-          { width: imageWidth * sliderPos, height: imageHeight, overflow: "hidden" },
-        ]}
+        ref={sliderContainerRef}
+        onLayout={updateContainerLeft}
+        style={[styles.sliderContainer, { width: imageWidth, height: imageHeight }]}
       >
         <Image
-          source={{ uri: resolveSrc(lastPhoto) }}
-          style={{ width: imageWidth, height: imageHeight }}
+          source={{ uri: resolveSrc(leftPhoto) }}
+          style={[styles.sliderImageBase, { width: imageWidth, height: imageHeight }]}
           contentFit="cover"
         />
-      </View>
-      <View
-        style={[styles.sliderDivider, { left: imageWidth * sliderPos - 1, height: imageHeight, backgroundColor: "#fff" }]}
-        {...panRef.panHandlers}
-      >
-        <View style={[styles.sliderHandle, { backgroundColor: "#fff" }]}>
-          <Ionicons name="chevron-back" size={10} color="#000" />
-          <Ionicons name="chevron-forward" size={10} color="#000" />
+        <View
+          style={[
+            styles.sliderOverlay,
+            { width: imageWidth * sliderPos, height: imageHeight, overflow: "hidden" },
+          ]}
+        >
+          <Image
+            source={{ uri: resolveSrc(rightPhoto) }}
+            style={{ width: imageWidth, height: imageHeight }}
+            contentFit="cover"
+          />
+        </View>
+        <View
+          style={[styles.sliderDivider, { left: imageWidth * sliderPos - 1, height: imageHeight, backgroundColor: "#fff" }]}
+          {...panRef.panHandlers}
+        >
+          <View style={[styles.sliderHandle, { backgroundColor: "#fff" }]}>
+            <Ionicons name="chevron-back" size={10} color="#000" />
+            <Ionicons name="chevron-forward" size={10} color="#000" />
+          </View>
         </View>
       </View>
-      <View style={styles.sliderLabels}>
-        <Text style={styles.sliderLabel}>BEFORE</Text>
-        <Text style={styles.sliderLabel}>AFTER</Text>
+
+      {/* Swappable date chips below the slider so they don't conflict with the drag handle */}
+      <View style={[styles.swapChipRow, { width: imageWidth }]}>
+        <TouchableOpacity
+          onPress={onChangeLeft}
+          style={[styles.swapChip, { backgroundColor: colors.card, borderColor: colors.border }]}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.swapChipLabel, { color: colors.mutedForeground }]}>BEFORE</Text>
+          <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
+            {formatShortDate(leftPhoto.takenAt)}
+          </Text>
+          <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onChangeRight}
+          style={[styles.swapChip, { backgroundColor: colors.card, borderColor: colors.border }]}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.swapChipLabel, { color: colors.mutedForeground }]}>AFTER</Text>
+          <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
+            {formatShortDate(rightPhoto.takenAt)}
+          </Text>
+          <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
+        </TouchableOpacity>
       </View>
     </View>
+  );
+}
+
+function GridCompare({
+  selectedPhotos,
+  resolveSrc,
+  onReplace,
+  onRemove,
+  onAdd,
+  canAdd,
+  canRemove,
+}: {
+  selectedPhotos: TrackPhoto[];
+  resolveSrc: (p: TrackPhoto) => string;
+  onReplace: (index: number) => void;
+  onRemove: (index: number) => void;
+  onAdd: () => void;
+  canAdd: boolean;
+  canRemove: boolean;
+}) {
+  const colors = useColors();
+  const tileWidth = 140;
+  const tileHeight = tileWidth * (4 / 3);
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.gridContent}
+    >
+      {selectedPhotos.map((photo, idx) => (
+        <View
+          key={photo.id}
+          style={[styles.gridTile, { width: tileWidth, borderColor: colors.border }]}
+        >
+          <Pressable onPress={() => onReplace(idx)} style={{ width: tileWidth, height: tileHeight }}>
+            <Image
+              source={{ uri: resolveSrc(photo) }}
+              style={{ width: tileWidth, height: tileHeight, backgroundColor: colors.muted }}
+              contentFit="cover"
+            />
+            <View style={styles.gridIndexBadge}>
+              <Text style={styles.gridIndexText}>{idx + 1}</Text>
+            </View>
+          </Pressable>
+          <View style={[styles.gridTileMeta, { backgroundColor: colors.card }]}>
+            <Text style={[styles.gridTileDate, { color: colors.foreground }]} numberOfLines={1}>
+              {formatShortDate(photo.takenAt)}
+            </Text>
+            {canRemove ? (
+              <TouchableOpacity onPress={() => onRemove(idx)} hitSlop={6}>
+                <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      ))}
+
+      {canAdd ? (
+        <TouchableOpacity
+          onPress={onAdd}
+          style={[
+            styles.gridAddTile,
+            {
+              width: tileWidth,
+              height: tileHeight + 36,
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+            },
+          ]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add-circle-outline" size={28} color={colors.primary} />
+          <Text style={[styles.gridAddText, { color: colors.mutedForeground }]}>Add photo</Text>
+        </TouchableOpacity>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+function PhotoPickerModal({
+  visible,
+  onClose,
+  photos,
+  resolveSrc,
+  onSelect,
+  excludeIds,
+  title,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  photos: TrackPhoto[];
+  resolveSrc: (p: TrackPhoto) => string;
+  onSelect: (photo: TrackPhoto) => void;
+  excludeIds?: string[];
+  title: string;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const cols = 3;
+  const gap = 8;
+  const horizontalPadding = 16;
+  const tileSize = Math.floor(
+    (Math.min(width, 600) - horizontalPadding * 2 - gap * (cols - 1)) / cols,
+  );
+  const excludeSet = new Set(excludeIds ?? []);
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={styles.pickerOverlay}>
+        <View
+          style={[
+            styles.pickerContainer,
+            { backgroundColor: colors.background, paddingBottom: insets.bottom + 16 },
+          ]}
+        >
+          <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerTitle, { color: colors.foreground }]}>{title}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={8}>
+              <Ionicons name="close" size={24} color={colors.foreground} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={photos}
+            keyExtractor={(item) => item.id}
+            numColumns={cols}
+            contentContainerStyle={{ padding: horizontalPadding, gap }}
+            columnWrapperStyle={{ gap }}
+            renderItem={({ item, index }) => {
+              const disabled = excludeSet.has(item.id);
+              return (
+                <Pressable
+                  onPress={() => {
+                    if (disabled) return;
+                    onSelect(item);
+                  }}
+                  style={({ pressed }) => [
+                    {
+                      width: tileSize,
+                      opacity: disabled ? 0.35 : pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: resolveSrc(item) }}
+                    style={{
+                      width: tileSize,
+                      height: tileSize,
+                      borderRadius: 10,
+                      backgroundColor: colors.muted,
+                    }}
+                    contentFit="cover"
+                  />
+                  <Text
+                    style={[styles.pickerTileLabel, { color: colors.mutedForeground }]}
+                    numberOfLines={1}
+                  >
+                    #{index + 1} · {formatShortDate(item.takenAt)}
+                  </Text>
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -121,6 +356,12 @@ function PhotoItem({ photo }: { photo: TrackPhoto }) {
   );
 }
 
+type PickerTarget =
+  | { kind: "slider-left" }
+  | { kind: "slider-right" }
+  | { kind: "grid-replace"; index: number }
+  | { kind: "grid-add" };
+
 export default function TrackDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -132,6 +373,57 @@ export default function TrackDetailScreen() {
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
+
+  // Comparison selection state
+  const [compareMode, setCompareMode] = useState<CompareMode>("slider");
+  const [leftId, setLeftId] = useState<string | null>(null);
+  const [rightId, setRightId] = useState<string | null>(null);
+  const [gridIds, setGridIds] = useState<string[]>([]);
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+
+  const photoIdsKey = trackPhotos.map((p) => p.id).join(",");
+
+  // Initialize / repair selections whenever the underlying photo set changes.
+  useEffect(() => {
+    if (trackPhotos.length < 2) {
+      setLeftId(null);
+      setRightId(null);
+      setGridIds([]);
+      return;
+    }
+    const ids = new Set(trackPhotos.map((p) => p.id));
+    const firstId = trackPhotos[0].id;
+    const lastId = trackPhotos[trackPhotos.length - 1].id;
+
+    // Repair slider sides; ensure they're never the same photo.
+    let nextLeft = leftId && ids.has(leftId) ? leftId : firstId;
+    let nextRight = rightId && ids.has(rightId) ? rightId : lastId;
+    if (nextLeft === nextRight) {
+      const fallback = trackPhotos.find((p) => p.id !== nextLeft);
+      if (fallback) nextRight = fallback.id;
+    }
+    if (nextLeft !== leftId) setLeftId(nextLeft);
+    if (nextRight !== rightId) setRightId(nextRight);
+
+    setGridIds((prev) => {
+      const filtered = prev.filter((pid) => ids.has(pid));
+      if (filtered.length >= 2) return filtered;
+      if (firstId !== lastId) return [firstId, lastId];
+      return filtered;
+    });
+  }, [photoIdsKey, trackPhotos.length]);
+
+  const photoById = useMemo(() => {
+    const m = new Map<string, TrackPhoto>();
+    for (const p of trackPhotos) m.set(p.id, p);
+    return m;
+  }, [trackPhotos]);
+
+  const leftPhoto = leftId ? photoById.get(leftId) ?? null : null;
+  const rightPhoto = rightId ? photoById.get(rightId) ?? null : null;
+  const gridPhotos = gridIds
+    .map((pid) => photoById.get(pid))
+    .filter((p): p is TrackPhoto => !!p);
 
   if (!track) {
     return (
@@ -170,8 +462,44 @@ export default function TrackDetailScreen() {
     router.push(`/camera?trackId=${track!.id}`);
   }
 
-  const firstPhoto = trackPhotos.length > 0 ? trackPhotos[0] : null;
-  const lastPhoto = trackPhotos.length > 1 ? trackPhotos[trackPhotos.length - 1] : null;
+  function handlePickerSelect(photo: TrackPhoto) {
+    if (!pickerTarget) return;
+    if (pickerTarget.kind === "slider-left") {
+      setLeftId(photo.id);
+    } else if (pickerTarget.kind === "slider-right") {
+      setRightId(photo.id);
+    } else if (pickerTarget.kind === "grid-replace") {
+      setGridIds((prev) => prev.map((pid, i) => (i === pickerTarget.index ? photo.id : pid)));
+    } else if (pickerTarget.kind === "grid-add") {
+      setGridIds((prev) => (prev.length < MAX_GRID_PHOTOS ? [...prev, photo.id] : prev));
+    }
+    setPickerTarget(null);
+  }
+
+  function pickerExcludeIds(): string[] {
+    if (!pickerTarget) return [];
+    if (pickerTarget.kind === "slider-left") return rightId ? [rightId] : [];
+    if (pickerTarget.kind === "slider-right") return leftId ? [leftId] : [];
+    if (pickerTarget.kind === "grid-add") return gridIds;
+    if (pickerTarget.kind === "grid-replace") {
+      return gridIds.filter((_, i) => i !== pickerTarget.index);
+    }
+    return [];
+  }
+
+  function pickerTitle(): string {
+    if (!pickerTarget) return "Choose a photo";
+    if (pickerTarget.kind === "slider-left") return "Choose the BEFORE photo";
+    if (pickerTarget.kind === "slider-right") return "Choose the AFTER photo";
+    if (pickerTarget.kind === "grid-add") return "Add a photo to compare";
+    return "Choose a photo";
+  }
+
+  function handleRemoveGrid(index: number) {
+    setGridIds((prev) => (prev.length > 2 ? prev.filter((_, i) => i !== index) : prev));
+  }
+
+  const canShowComparison = trackPhotos.length >= 2 && leftPhoto && rightPhoto;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -209,16 +537,88 @@ export default function TrackDetailScreen() {
               </Text>
             ) : null}
 
-            {/* Before/After Comparison */}
-            {firstPhoto && lastPhoto ? (
+            {/* Comparison area */}
+            {canShowComparison && leftPhoto && rightPhoto ? (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                  Before vs. After
-                </Text>
+                <View style={styles.compareHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                    Compare
+                  </Text>
+
+                  {/* Mode toggle */}
+                  <View style={[styles.segmented, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <TouchableOpacity
+                      onPress={() => setCompareMode("slider")}
+                      style={[
+                        styles.segmentBtn,
+                        compareMode === "slider" && { backgroundColor: colors.primary },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="swap-horizontal-outline"
+                        size={14}
+                        color={compareMode === "slider" ? "#000" : colors.foreground}
+                      />
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          { color: compareMode === "slider" ? "#000" : colors.foreground },
+                        ]}
+                      >
+                        Slider
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setCompareMode("grid")}
+                      style={[
+                        styles.segmentBtn,
+                        compareMode === "grid" && { backgroundColor: colors.primary },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="grid-outline"
+                        size={14}
+                        color={compareMode === "grid" ? "#000" : colors.foreground}
+                      />
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          { color: compareMode === "grid" ? "#000" : colors.foreground },
+                        ]}
+                      >
+                        Side-by-side
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-                  Drag to compare
+                  {compareMode === "slider"
+                    ? "Drag the divider, or tap a date below to pick a different photo."
+                    : `Scroll to see all ${gridPhotos.length} photos. Tap a tile to swap, or add up to ${MAX_GRID_PHOTOS}.`}
                 </Text>
-                <BeforeAfterSlider firstPhoto={firstPhoto} lastPhoto={lastPhoto} resolveSrc={resolvePhotoSource} />
+
+                {compareMode === "slider" ? (
+                  <BeforeAfterSlider
+                    leftPhoto={leftPhoto}
+                    rightPhoto={rightPhoto}
+                    resolveSrc={resolvePhotoSource}
+                    onChangeLeft={() => setPickerTarget({ kind: "slider-left" })}
+                    onChangeRight={() => setPickerTarget({ kind: "slider-right" })}
+                  />
+                ) : (
+                  <GridCompare
+                    selectedPhotos={gridPhotos}
+                    resolveSrc={resolvePhotoSource}
+                    onReplace={(index) => setPickerTarget({ kind: "grid-replace", index })}
+                    onRemove={handleRemoveGrid}
+                    onAdd={() => setPickerTarget({ kind: "grid-add" })}
+                    canAdd={gridPhotos.length < MAX_GRID_PHOTOS && gridPhotos.length < trackPhotos.length}
+                    canRemove={gridPhotos.length > 2}
+                  />
+                )}
               </View>
             ) : null}
 
@@ -266,6 +666,16 @@ export default function TrackDetailScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <PhotoPickerModal
+        visible={pickerTarget !== null}
+        onClose={() => setPickerTarget(null)}
+        photos={trackPhotos}
+        resolveSrc={resolvePhotoSource}
+        onSelect={handlePickerSelect}
+        excludeIds={pickerExcludeIds()}
+        title={pickerTitle()}
+      />
     </View>
   );
 }
@@ -328,7 +738,138 @@ const styles = StyleSheet.create({
   sectionSub: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  compareHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  segmented: {
+    flexDirection: "row",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    padding: 2,
+    gap: 2,
+  },
+  segmentBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  segmentText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  swapChipRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+    gap: 8,
+  },
+  swapChip: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  swapChipLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.5,
+  },
+  swapChipDate: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  gridContent: {
+    gap: 10,
+    paddingVertical: 4,
+    paddingRight: 4,
+  },
+  gridTile: {
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  gridIndexBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gridIndexText: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+  },
+  gridTileMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  gridTileDate: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+  },
+  gridAddTile: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  gridAddText: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  pickerContainer: {
+    width: "100%",
+    height: "80%",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+  },
+  pickerTileLabel: {
+    marginTop: 4,
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
   },
   timelineHeader: {
     marginTop: 8,
@@ -458,24 +999,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
-  },
-  sliderLabels: {
-    position: "absolute",
-    bottom: 10,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-  },
-  sliderLabel: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    letterSpacing: 0.5,
   },
 });

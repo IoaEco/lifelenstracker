@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq } from "drizzle-orm";
 import { db, tracksTable, photosTable } from "@workspace/db";
+import { resolveObjectOwner } from "./storage";
 import {
   GetSyncSnapshotResponse,
   PushSyncBody,
@@ -68,6 +69,24 @@ router.post("/sync/push", requireAuth, async (req: Request, res: Response) => {
   const { tracks, photos } = parsed.data;
 
   try {
+    // Validate object ownership BEFORE writing anything: every objectPath the
+    // client wants to attach to a photo row must have been issued to this
+    // same user via /storage/uploads/request-url (or bootstrapped as theirs
+    // from legacy data). This prevents stealing another user's photo by
+    // claiming their objectPath in a sync push.
+    const incomingObjectPaths = Array.from(
+      new Set(photos.map((p) => p.objectPath).filter((p): p is string => !!p)),
+    );
+    for (const path of incomingObjectPaths) {
+      const owner = await resolveObjectOwner(path);
+      if (owner === null || owner === "AMBIGUOUS" || owner !== userId) {
+        res
+          .status(403)
+          .json({ error: "Cannot reference an object you do not own" });
+        return;
+      }
+    }
+
     for (const track of tracks) {
       const incomingUpdated = toDate(track.updatedAt);
       const existing = await db

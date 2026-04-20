@@ -54,6 +54,11 @@ export interface TrackPhoto {
 
 export type SyncStatus = "idle" | "syncing" | "error";
 
+export interface PhotoSource {
+  uri: string;
+  headers?: Record<string, string>;
+}
+
 export type PhotoBackupStatus =
   | "uploading"
   | "backed-up"
@@ -102,7 +107,7 @@ interface TrackContextType {
   deletePhoto: (photoId: string) => Promise<void>;
   getTrackPhotos: (trackId: string) => TrackPhoto[];
   getLatestPhoto: (trackId: string) => TrackPhoto | null;
-  resolvePhotoSource: (photo: TrackPhoto) => string;
+  resolvePhotoSource: (photo: TrackPhoto) => PhotoSource;
   syncNow: () => Promise<void>;
 }
 
@@ -257,6 +262,10 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
 
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
   const [failedIds, setFailedIds] = useState<Map<string, string>>(new Map());
+  // Token is held in state (not just a ref) so that resolvePhotoSource's
+  // identity changes when the token rotates, causing <Image> consumers to
+  // rerender with the fresh Authorization header.
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   const tracksRef = useRef<Track[]>([]);
   const photosRef = useRef<TrackPhoto[]>([]);
@@ -492,6 +501,37 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isSignedIn, retryFailedUploads]);
 
+  // Keep a fresh Clerk token in state so we can attach it as an Authorization
+  // header to <Image> requests for cloud-stored photos (which use a sync API).
+  // Using state (not a ref) ensures that when the token arrives or rotates,
+  // resolvePhotoSource's identity changes and consumers rerender with the
+  // fresh header.
+  useEffect(() => {
+    if (!isSignedIn) {
+      setAuthToken(null);
+      return;
+    }
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const t = await getToken();
+        if (cancelled) return;
+        setAuthToken((prev) => {
+          const next = t ?? null;
+          return prev === next ? prev : next;
+        });
+      } catch {
+        // ignore — next refresh will retry
+      }
+    };
+    void refresh();
+    const interval = setInterval(() => void refresh(), 45_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isSignedIn, getToken]);
+
   // Trigger initial sync when the user signs in (or the app boots already signed in).
   useEffect(() => {
     if (!authLoaded || loading) return;
@@ -672,15 +712,23 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     [getTrackPhotos],
   );
 
-  const resolvePhotoSource = useCallback((photo: TrackPhoto) => {
-    if (photo.uri && !photo.uri.startsWith("http") && photo.uri.length > 0) {
-      return photo.uri;
-    }
-    if (photo.objectPath) {
-      return `${getApiBaseUrl()}/api/storage${photo.objectPath}`;
-    }
-    return photo.uri;
-  }, []);
+  const resolvePhotoSource = useCallback(
+    (photo: TrackPhoto): PhotoSource => {
+      if (photo.uri && !photo.uri.startsWith("http") && photo.uri.length > 0) {
+        return { uri: photo.uri };
+      }
+      if (photo.objectPath) {
+        return {
+          uri: `${getApiBaseUrl()}/api/storage${photo.objectPath}`,
+          headers: authToken
+            ? { Authorization: `Bearer ${authToken}` }
+            : undefined,
+        };
+      }
+      return { uri: photo.uri };
+    },
+    [authToken],
+  );
 
   const getPhotoBackupStatus = useCallback(
     (photo: TrackPhoto): PhotoBackupStatus => {

@@ -30,6 +30,7 @@ import type { Measurement } from "@/context/TrackContext";
 import {
   type PhotoBackupStatus,
   type TrackPhoto,
+  type PhotoSource,
   useTrack,
 } from "@/context/TrackContext";
 
@@ -67,7 +68,7 @@ function BeforeAfterSlider({
 }: {
   leftPhoto: TrackPhoto;
   rightPhoto: TrackPhoto;
-  resolveSrc: (p: TrackPhoto) => string;
+  resolveSrc: (p: TrackPhoto) => PhotoSource;
   onChangeLeft: () => void;
   onChangeRight: () => void;
   measurement: Measurement | null;
@@ -113,7 +114,7 @@ function BeforeAfterSlider({
         style={[styles.sliderContainer, { width: imageWidth, height: imageHeight }]}
       >
         <Image
-          source={{ uri: resolveSrc(leftPhoto) }}
+          source={resolveSrc(leftPhoto)}
           style={[styles.sliderImageBase, { width: imageWidth, height: imageHeight }]}
           contentFit="cover"
         />
@@ -124,7 +125,7 @@ function BeforeAfterSlider({
           ]}
         >
           <Image
-            source={{ uri: resolveSrc(rightPhoto) }}
+            source={resolveSrc(rightPhoto)}
             style={{ width: imageWidth, height: imageHeight }}
             contentFit="cover"
           />
@@ -223,7 +224,7 @@ function GridCompare({
   measurement,
 }: {
   selectedPhotos: TrackPhoto[];
-  resolveSrc: (p: TrackPhoto) => string;
+  resolveSrc: (p: TrackPhoto) => PhotoSource;
   onReplace: (index: number) => void;
   onRemove: (index: number) => void;
   onAdd: () => void;
@@ -248,7 +249,7 @@ function GridCompare({
         >
           <Pressable onPress={() => onReplace(idx)} style={{ width: tileWidth, height: tileHeight }}>
             <Image
-              source={{ uri: resolveSrc(photo) }}
+              source={resolveSrc(photo)}
               style={{ width: tileWidth, height: tileHeight, backgroundColor: colors.muted }}
               contentFit="cover"
             />
@@ -315,7 +316,7 @@ function PhotoPickerModal({
   visible: boolean;
   onClose: () => void;
   photos: TrackPhoto[];
-  resolveSrc: (p: TrackPhoto) => string;
+  resolveSrc: (p: TrackPhoto) => PhotoSource;
   onSelect: (photo: TrackPhoto) => void;
   excludeIds?: string[];
   title: string;
@@ -373,7 +374,7 @@ function PhotoPickerModal({
                   ]}
                 >
                   <Image
-                    source={{ uri: resolveSrc(item) }}
+                    source={resolveSrc(item)}
                     style={{
                       width: tileSize,
                       height: tileSize,
@@ -478,7 +479,7 @@ function PhotoItem({
     >
       <View>
         <Image
-          source={{ uri: resolvePhotoSource(photo) }}
+          source={resolvePhotoSource(photo)}
           style={[styles.photoImage, { backgroundColor: colors.muted }]}
           contentFit="cover"
         />
@@ -564,7 +565,7 @@ function ShareComposite({
   title: string;
   leftPhoto: TrackPhoto;
   rightPhoto: TrackPhoto;
-  resolveSrc: (p: TrackPhoto) => string;
+  resolveSrc: (p: TrackPhoto) => PhotoSource;
 }) {
   const tileWidth = 540;
   const tileHeight = tileWidth * (4 / 3);
@@ -578,7 +579,7 @@ function ShareComposite({
           <View style={styles.sharePair}>
             <View style={styles.shareTile}>
               <Image
-                source={{ uri: resolveSrc(leftPhoto) }}
+                source={resolveSrc(leftPhoto)}
                 style={{ width: tileWidth, height: tileHeight, backgroundColor: "#111" }}
                 contentFit="cover"
               />
@@ -589,7 +590,7 @@ function ShareComposite({
             </View>
             <View style={styles.shareTile}>
               <Image
-                source={{ uri: resolveSrc(rightPhoto) }}
+                source={resolveSrc(rightPhoto)}
                 style={{ width: tileWidth, height: tileHeight, backgroundColor: "#111" }}
                 contentFit="cover"
               />
@@ -773,8 +774,8 @@ export default function TrackDetailScreen() {
       // Make sure both photo bitmaps are loaded before snapshotting.
       try {
         await Image.prefetch([
-          resolvePhotoSource(leftPhoto),
-          resolvePhotoSource(rightPhoto),
+          resolvePhotoSource(leftPhoto).uri,
+          resolvePhotoSource(rightPhoto).uri,
         ]);
       } catch {
         // best-effort; capture will still proceed

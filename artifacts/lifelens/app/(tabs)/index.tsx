@@ -100,7 +100,7 @@ function TrackCard({ track }: { track: Track }) {
 
       {latestPhoto ? (
         <Image
-          source={{ uri: resolvePhotoSource(latestPhoto) }}
+          source={resolvePhotoSource(latestPhoto)}
           style={[styles.thumbnail, { borderColor: colors.border }]}
           contentFit="cover"
         />

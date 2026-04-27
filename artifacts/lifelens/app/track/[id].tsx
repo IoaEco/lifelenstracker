@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import * as MediaLibrary from "expo-media-library";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
@@ -80,6 +79,18 @@ function formatShortDate(dateStr: string): string {
 
 type CompareMode = "slider" | "grid";
 
+function buildPhotoDesignations(photos: TrackPhoto[]): Map<string, string> {
+  const map = new Map<string, string>();
+  if (photos.length === 0) return map;
+  const firstDayMs = new Date(photos[0].takenAt).setHours(0, 0, 0, 0);
+  for (const photo of photos) {
+    const dayMs = new Date(photo.takenAt).setHours(0, 0, 0, 0);
+    const dayNumber = Math.round((dayMs - firstDayMs) / 86_400_000) + 1;
+    map.set(photo.id, `Photo ${photo.daySequence ?? 1} · Day ${dayNumber}`);
+  }
+  return map;
+}
+
 function BeforeAfterSlider({
   leftPhoto,
   rightPhoto,
@@ -87,6 +98,7 @@ function BeforeAfterSlider({
   onChangeLeft,
   onChangeRight,
   measurement,
+  designations,
 }: {
   leftPhoto: TrackPhoto;
   rightPhoto: TrackPhoto;
@@ -94,6 +106,7 @@ function BeforeAfterSlider({
   onChangeLeft: () => void;
   onChangeRight: () => void;
   measurement: Measurement | null;
+  designations: Map<string, string>;
 }) {
   const colors = useColors();
   const { width } = useWindowDimensions();
@@ -290,7 +303,7 @@ function BeforeAfterSlider({
         >
           <Text style={[styles.swapChipLabel, { color: colors.mutedForeground }]}>BEFORE</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
-            {formatShortDate(leftPhoto.takenAt)}
+            {designations.get(leftPhoto.id) ?? formatShortDate(leftPhoto.takenAt)}
           </Text>
           {measurement ? (
             <Text
@@ -312,7 +325,7 @@ function BeforeAfterSlider({
         >
           <Text style={[styles.swapChipLabel, { color: colors.mutedForeground }]}>AFTER</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
-            {formatShortDate(rightPhoto.takenAt)}
+            {designations.get(rightPhoto.id) ?? formatShortDate(rightPhoto.takenAt)}
           </Text>
           {measurement ? (
             <Text
@@ -399,9 +412,6 @@ function GridCompare({
               style={{ width: tileWidth, height: tileHeight, backgroundColor: colors.muted }}
               contentFit="cover"
             />
-            <View style={styles.gridIndexBadge}>
-              <Text style={styles.gridIndexText}>{idx + 1}</Text>
-            </View>
             <View style={styles.gridZoomBadge} pointerEvents="none">
               <Ionicons name="expand-outline" size={12} color="#fff" />
             </View>
@@ -410,6 +420,9 @@ function GridCompare({
             <View style={{ flex: 1 }}>
               <Text style={[styles.gridTileDate, { color: colors.foreground }]} numberOfLines={1}>
                 {formatShortDate(photo.takenAt)}
+              </Text>
+              <Text style={[styles.gridTileTime, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {new Date(photo.takenAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
               </Text>
               {measurement ? (
                 <Text
@@ -470,6 +483,7 @@ function PhotoPickerModal({
   onSelect,
   excludeIds,
   title,
+  designations,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -478,6 +492,7 @@ function PhotoPickerModal({
   onSelect: (photo: TrackPhoto) => void;
   excludeIds?: string[];
   title: string;
+  designations: Map<string, string>;
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -516,7 +531,7 @@ function PhotoPickerModal({
             numColumns={cols}
             contentContainerStyle={{ padding: horizontalPadding, gap }}
             columnWrapperStyle={{ gap }}
-            renderItem={({ item, index }) => {
+            renderItem={({ item }) => {
               const disabled = excludeSet.has(item.id);
               return (
                 <Pressable
@@ -545,7 +560,7 @@ function PhotoPickerModal({
                     style={[styles.pickerTileLabel, { color: colors.mutedForeground }]}
                     numberOfLines={1}
                   >
-                    #{index + 1} · {formatShortDate(item.takenAt)}
+                    {designations.get(item.id) ?? `Photo ${item.daySequence ?? 1}`}
                   </Text>
                 </Pressable>
               );
@@ -617,10 +632,12 @@ function PhotoItem({
   photo,
   measurement,
   onPress,
+  designation,
 }: {
   photo: TrackPhoto;
   measurement: Measurement | null;
   onPress: (photo: TrackPhoto) => void;
+  designation: string;
 }) {
   const colors = useColors();
   const { resolvePhotoSource, getPhotoBackupStatus, retryPhotoUpload } = useTrack();
@@ -632,7 +649,7 @@ function PhotoItem({
       onPress={() => onPress(photo)}
       style={({ pressed }) => [
         styles.photoItem,
-        { borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+        { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 },
       ]}
     >
       <View>
@@ -689,18 +706,12 @@ function PhotoItem({
         ) : null}
       </View>
       <View style={styles.photoMeta}>
-        <Ionicons name="time-outline" size={12} color={colors.mutedForeground} />
-        <Text style={[styles.photoDate, { color: colors.mutedForeground }]}>
+        <Text style={[styles.photoDesignation, { color: colors.foreground }]} numberOfLines={1}>
+          {designation}
+        </Text>
+        <Text style={[styles.photoDate, { color: colors.mutedForeground }]} numberOfLines={1}>
           {formatDateTime(photo.takenAt)}
         </Text>
-        {photo.tilt && (
-          <View style={styles.tiltBadge}>
-            <Ionicons name="phone-portrait-outline" size={10} color={colors.mutedForeground} />
-            <Text style={[styles.tiltText, { color: colors.mutedForeground }]}>
-              x:{photo.tilt.x.toFixed(1)} y:{photo.tilt.y.toFixed(1)}
-            </Text>
-          </View>
-        )}
       </View>
     </Pressable>
   );
@@ -842,13 +853,9 @@ export default function TrackDetailScreen() {
   const shareRef = useRef<ViewShot | null>(null);
   const timelapseRef = useRef<ViewShot | null>(null);
   const [sharing, setSharing] = useState(false);
-  const [savingToPhotos, setSavingToPhotos] = useState(false);
   const [timelapseFrameIdx, setTimelapseFrameIdx] = useState<number | null>(null);
   const [exportingTimelapse, setExportingTimelapse] = useState(false);
   const [timelapseProgress, setTimelapseProgress] = useState(0);
-  const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions({
-    granularPermissions: ["photo"],
-  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<TrackPhoto | null>(null);
   const [measuringPhoto, setMeasuringPhoto] = useState<TrackPhoto | null>(null);
@@ -857,6 +864,11 @@ export default function TrackDetailScreen() {
   const track = tracks.find((t) => t.id === id);
   const trackPhotos = getTrackPhotos(id ?? "");
   const measurement = track?.measurement ?? null;
+
+  const photoDesignations = useMemo(
+    () => buildPhotoDesignations(trackPhotos),
+    [trackPhotos],
+  );
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
@@ -1217,63 +1229,6 @@ export default function TrackDetailScreen() {
     }
   }
 
-  async function handleSaveToPhotos() {
-    if (!canShare || !leftPhoto || !rightPhoto || savingToPhotos) return;
-    setSavingToPhotos(true);
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      let permission = mediaPermission;
-      if (!permission || permission.status !== "granted") {
-        permission = await requestMediaPermission();
-      }
-      if (!permission || permission.status !== "granted") {
-        if (permission && !permission.canAskAgain) {
-          Alert.alert(
-            "Permission needed",
-            "LifeLens needs permission to save photos to your library. Enable it in Settings.",
-          );
-        } else {
-          Alert.alert(
-            "Permission needed",
-            "LifeLens needs permission to save photos to your library.",
-          );
-        }
-        return;
-      }
-
-      try {
-        await Image.prefetch([
-          resolvePhotoSource(leftPhoto).uri,
-          resolvePhotoSource(rightPhoto).uri,
-        ]);
-      } catch {
-        // best-effort
-      }
-      await new Promise((r) => setTimeout(r, 200));
-      if (!shareRef.current) {
-        Alert.alert("Save failed", "Image is not ready yet, please try again.");
-        return;
-      }
-      const uri = await captureRef(shareRef.current, {
-        format: "jpg",
-        quality: 0.95,
-      });
-      await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert(
-        "Saved to Photos",
-        Platform.OS === "ios"
-          ? "Your before/after image was saved to your Photos library."
-          : "Your before/after image was saved to your gallery.",
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not save image";
-      Alert.alert("Save failed", message);
-    } finally {
-      setSavingToPhotos(false);
-    }
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -1290,41 +1245,26 @@ export default function TrackDetailScreen() {
           </Text>
         </View>
         {canShare ? (
-          <>
-            <TouchableOpacity
-              testID="save-to-photos-button"
-              onPress={handleSaveToPhotos}
-              disabled={savingToPhotos}
-              style={[styles.headerIconBtn, savingToPhotos && styles.headerIconBtnDisabled]}
-              accessibilityLabel="Save before and after to Photos"
-            >
-              <Ionicons
-                name="download-outline"
-                size={22}
-                color={savingToPhotos ? colors.mutedForeground : colors.foreground}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="share-track-button"
-              onPress={handleSharePress}
-              disabled={sharing || exportingTimelapse}
-              style={[
-                styles.headerIconBtn,
-                (sharing || exportingTimelapse) && styles.headerIconBtnDisabled,
-              ]}
-              accessibilityLabel="Share this track"
-            >
-              <Ionicons
-                name="share-outline"
-                size={22}
-                color={
-                  sharing || exportingTimelapse
-                    ? colors.mutedForeground
-                    : colors.foreground
-                }
-              />
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            testID="share-track-button"
+            onPress={handleSharePress}
+            disabled={sharing || exportingTimelapse}
+            style={[
+              styles.headerIconBtn,
+              (sharing || exportingTimelapse) && styles.headerIconBtnDisabled,
+            ]}
+            accessibilityLabel="Share this track"
+          >
+            <Ionicons
+              name="share-outline"
+              size={22}
+              color={
+                sharing || exportingTimelapse
+                  ? colors.mutedForeground
+                  : colors.foreground
+              }
+            />
+          </TouchableOpacity>
         ) : null}
         <TouchableOpacity
           testID="track-settings-button"
@@ -1405,6 +1345,7 @@ export default function TrackDetailScreen() {
           <PhotoItem
             photo={item}
             measurement={measurement}
+            designation={photoDesignations.get(item.id) ?? `Photo ${item.daySequence ?? 1}`}
             onPress={(p) => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (measurement) {
@@ -1498,6 +1439,7 @@ export default function TrackDetailScreen() {
                     onChangeLeft={() => setPickerTarget({ kind: "slider-left" })}
                     onChangeRight={() => setPickerTarget({ kind: "slider-right" })}
                     measurement={measurement}
+                    designations={photoDesignations}
                   />
                 ) : (
                   <GridCompare
@@ -1583,6 +1525,7 @@ export default function TrackDetailScreen() {
         onSelect={handlePickerSelect}
         excludeIds={pickerExcludeIds()}
         title={pickerTitle()}
+        designations={photoDesignations}
       />
 
       <TrackMeasurementSettingsModal
@@ -1992,8 +1935,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 6,
   },
+  gridTileTime: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    marginTop: 1,
+  },
   gridTileDate: {
-    flex: 1,
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
   },
@@ -2076,23 +2023,16 @@ const styles = StyleSheet.create({
     aspectRatio: 4 / 3,
   },
   photoMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
+    flexDirection: "column",
+    gap: 2,
     padding: 10,
+  },
+  photoDesignation: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
   },
   photoDate: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
-  },
-  tiltBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  tiltText: {
-    fontSize: 10,
     fontFamily: "Inter_400Regular",
   },
   backupBadgeWrap: {

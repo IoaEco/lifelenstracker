@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Directory, File, Paths } from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
+import * as MediaLibrary from "expo-media-library";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -137,6 +138,15 @@ export default function CameraScreen() {
   const { trackId } = useLocalSearchParams<{ trackId: string }>();
   const { tracks, getLatestPhoto, addPhoto, updateTrackLastReference } = useTrack();
   const [permission, requestPermission] = useCameraPermissions();
+  const [, requestMediaPermission] = MediaLibrary.usePermissions();
+
+  // Request media library permission proactively so camera roll saves work on first shot
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      void requestMediaPermission();
+    }
+  }, []);
+
   const [overlayOpacity, setOverlayOpacity] = useState(0.45);
   const [showGrid, setShowGrid] = useState(true);
   const accel = useAccelerometer();
@@ -201,15 +211,27 @@ export default function CameraScreen() {
           });
         }
       } else {
-        // On native, the camera writes to a cache/temp directory whose URI
-        // can be invalidated between sessions. Copy into the app's document
-        // directory so the file is guaranteed to exist when reopened.
-        const dir = new Directory(Paths.document, "lifelens");
-        if (!dir.exists) dir.create({ intermediates: true });
-        const dest = new File(dir, `${Date.now()}.jpg`);
-        const src = new File(photo.uri);
-        src.copy(dest);
-        permanentUri = dest.uri;
+        // Explicitly request media library permission at save time.
+        const mediaPermResult = await MediaLibrary.requestPermissionsAsync();
+        if (mediaPermResult.status !== "granted") {
+          Alert.alert(
+            "Photos Access Needed",
+            "To save photos to your camera roll, enable Photos access for LifeLens in Settings → LifeLens → Photos.",
+            [
+              { text: "Not Now", style: "cancel" },
+              { text: "Open Settings", onPress: () => void Linking.openSettings() },
+            ],
+          );
+        } else {
+          // Save to camera roll so iCloud picks it up (best-effort).
+          try {
+            await MediaLibrary.saveToLibraryAsync(photo.uri);
+          } catch {
+            // Camera roll save failed — continue with local storage save
+          }
+        }
+
+        permanentUri = photo.uri;
       }
 
       const tilt = Platform.OS !== "web" ? accel : null;
@@ -228,8 +250,8 @@ export default function CameraScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.back();
       }
-    } catch {
-      setCaptureError("Save failed. Check storage permissions and try again.");
+    } catch (err) {
+      setCaptureError(err instanceof Error ? err.message : String(err));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setCapturing(false);

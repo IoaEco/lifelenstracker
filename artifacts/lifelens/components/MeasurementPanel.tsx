@@ -66,7 +66,12 @@ export function MeasurementPanel({ measurement, photos, onEditSettings }: Props)
     const max = Math.max(...values);
     const totalDelta = last - first;
     const prevDelta = values.length >= 2 ? last - values[values.length - 2] : 0;
-    return { first, last, min, max, totalDelta, prevDelta };
+    const firstDate = new Date(valuedPhotos[0].takenAt);
+    const lastDate = new Date(valuedPhotos[valuedPhotos.length - 1].takenAt);
+    const daysElapsed = Math.round(
+      (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return { first, last, min, max, totalDelta, prevDelta, daysElapsed };
   }, [valuedPhotos]);
 
   const chartW = Math.min(winW - 32, 600);
@@ -122,6 +127,21 @@ export function MeasurementPanel({ measurement, photos, onEditSettings }: Props)
           <Ionicons name="options-outline" size={18} color={colors.mutedForeground} />
         </TouchableOpacity>
       </View>
+
+      {stats && valuedPhotos.length >= 2 ? (
+        <Text
+          testID="measurement-progress-summary"
+          style={[styles.progressSummary, { color: colors.foreground }]}
+        >
+          {measurement.label}:{" "}
+          <Text style={{ color: stats.totalDelta >= 0 ? colors.primary : colors.foreground }}>
+            {formatDelta(stats.totalDelta, measurement.unit)}
+          </Text>
+          {stats.daysElapsed > 0
+            ? ` over ${stats.daysElapsed} ${stats.daysElapsed === 1 ? "day" : "days"}`
+            : " (same day)"}
+        </Text>
+      ) : null}
 
       {stats ? (
         <View style={styles.deltaRow}>
@@ -235,6 +255,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  progressSummary: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 20,
   },
   deltaRow: {
     flexDirection: "row",

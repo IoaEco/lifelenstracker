@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/expo";
-import { File } from "expo-file-system";
+import * as FileSystem from "expo-file-system";
 import { AppState, Platform } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import React, {
@@ -50,6 +50,7 @@ export interface TrackPhoto {
   deleted?: boolean;
   measurementValue?: number | null;
   measuredVisually?: boolean;
+  daySequence?: number;
 }
 
 export type SyncStatus = "idle" | "syncing" | "error";
@@ -95,7 +96,7 @@ interface TrackContextType {
   ) => Promise<void>;
   deleteTrack: (trackId: string) => Promise<void>;
   addPhoto: (
-    photo: Omit<TrackPhoto, "id" | "takenAt" | "updatedAt">,
+    photo: Omit<TrackPhoto, "id" | "takenAt" | "updatedAt" | "daySequence">,
   ) => Promise<TrackPhoto>;
   updatePhotoMeasurement: (
     photoId: string,
@@ -346,8 +347,8 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
                 if (uri.startsWith("blob:")) broken = true;
               } else {
                 try {
-                  const file = new File(uri);
-                  if (!file.exists) broken = true;
+                  const info = await FileSystem.getInfoAsync(uri);
+                  if (!info.exists) broken = true;
                 } catch {
                   broken = true;
                 }
@@ -362,9 +363,31 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
               cleaned.push(p);
             }
           }
-          setPhotos(cleaned);
-          if (cleaned.length !== normalized.length || cleaned.some((p, i) => p.uri !== normalized[i]?.uri)) {
-            await AsyncStorage.setItem(PHOTOS_KEY, JSON.stringify(cleaned));
+          // Retroactively assign daySequence to photos that predate the field.
+          let finalPhotos = cleaned;
+          if (cleaned.some((p) => !p.daySequence)) {
+            const groups = new Map<string, TrackPhoto[]>();
+            for (const p of cleaned) {
+              const dateKey = new Date(p.takenAt).toISOString().slice(0, 10);
+              const key = `${p.trackId}|${dateKey}`;
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push(p);
+            }
+            const seqMap = new Map<string, number>();
+            for (const group of groups.values()) {
+              group.sort((a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime());
+              group.forEach((p, i) => { if (!p.daySequence) seqMap.set(p.id, i + 1); });
+            }
+            finalPhotos = cleaned.map((p) =>
+              seqMap.has(p.id) ? { ...p, daySequence: seqMap.get(p.id)! } : p,
+            );
+          }
+          setPhotos(finalPhotos);
+          if (
+            finalPhotos.length !== normalized.length ||
+            finalPhotos.some((p, i) => p.uri !== normalized[i]?.uri || p.daySequence !== (normalized[i] as TrackPhoto & { daySequence?: number }).daySequence)
+          ) {
+            await AsyncStorage.setItem(PHOTOS_KEY, JSON.stringify(finalPhotos));
           }
         }
         if (syncedAt) setLastSyncedAt(syncedAt);
@@ -674,8 +697,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS !== "web") {
         for (const uri of localPhotoUris) {
           try {
-            const file = new File(uri);
-            if (file.exists) file.delete();
+            await FileSystem.deleteAsync(uri, { idempotent: true });
           } catch {
             // ignore individual delete failures
           }
@@ -686,13 +708,20 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addPhoto = useCallback(
-    async (data: Omit<TrackPhoto, "id" | "takenAt" | "updatedAt">) => {
+    async (data: Omit<TrackPhoto, "id" | "takenAt" | "updatedAt" | "daySequence">) => {
       const ts = nowIso();
+      const todayMs = new Date(ts).setHours(0, 0, 0, 0);
+      const daySequence =
+        photosRef.current.filter((p) => {
+          if (p.trackId !== data.trackId || p.deleted) return false;
+          return new Date(p.takenAt).setHours(0, 0, 0, 0) === todayMs;
+        }).length + 1;
       const photo: TrackPhoto = {
         ...data,
         id: generateId(),
         takenAt: ts,
         updatedAt: ts,
+        daySequence,
         deleted: false,
       };
       const updated = [...photosRef.current, photo];
@@ -757,8 +786,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
 
       if (photo && photo.uri && !photo.uri.startsWith("http") && Platform.OS !== "web") {
         try {
-          const file = new File(photo.uri);
-          if (file.exists) file.delete();
+          await FileSystem.deleteAsync(photo.uri, { idempotent: true });
         } catch {
           // ignore
         }

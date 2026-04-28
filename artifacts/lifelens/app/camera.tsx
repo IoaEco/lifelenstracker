@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
@@ -222,16 +223,26 @@ export default function CameraScreen() {
               { text: "Open Settings", onPress: () => void Linking.openSettings() },
             ],
           );
+          // Permission denied — keep photo.uri as-is (temp) so the capture isn't lost
         } else {
-          // Save to camera roll so iCloud picks it up (best-effort).
+          // Save to camera roll for iCloud backup (best effort)
           try {
-            await MediaLibrary.saveToLibraryAsync(photo.uri);
+            await MediaLibrary.createAssetAsync(photo.uri);
           } catch {
-            // Camera roll save failed — continue with local storage save
+            // best effort — continue even if camera roll save fails
+          }
+          // Copy to permanent app storage using legacy API
+          try {
+            const destDir = FileSystem.documentDirectory + "lifelens/";
+            await FileSystem.makeDirectoryAsync(destDir, { intermediates: true }).catch(() => {});
+            const destUri = destDir + Date.now() + ".jpg";
+            await FileSystem.copyAsync({ from: photo.uri, to: destUri });
+            permanentUri = destUri;
+          } catch (fsErr) {
+            const msg = fsErr instanceof Error ? fsErr.message : String(fsErr);
+            throw new Error("File copy failed: " + msg);
           }
         }
-
-        permanentUri = photo.uri;
       }
 
       const tilt = Platform.OS !== "web" ? accel : null;

@@ -345,11 +345,18 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
             if (uri && !uri.startsWith("http")) {
               if (Platform.OS === "web") {
                 if (uri.startsWith("blob:")) broken = true;
-              } else {
+              } else if (uri.includes("lifelens")) {
+                // URIs in our permanent app storage directory are never broken —
+                // skip the existence check to avoid false-positive drops.
+              } else if (uri.startsWith("file://") || uri.startsWith("/")) {
                 try {
                   const info = await FileSystem.getInfoAsync(uri);
-                  if (!info.exists) broken = true;
-                } catch {
+                  if (!info.exists) {
+                    console.warn("[TrackContext] Marking photo as broken (file not found):", uri);
+                    broken = true;
+                  }
+                } catch (e) {
+                  console.warn("[TrackContext] Marking photo as broken (getInfoAsync threw):", uri, e);
                   broken = true;
                 }
               }

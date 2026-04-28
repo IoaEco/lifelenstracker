@@ -8,7 +8,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -212,36 +211,22 @@ export default function CameraScreen() {
           });
         }
       } else {
-        // Explicitly request media library permission at save time.
-        const mediaPermResult = await MediaLibrary.requestPermissionsAsync();
-        if (mediaPermResult.status !== "granted") {
-          Alert.alert(
-            "Photos Access Needed",
-            "To save photos to your camera roll, enable Photos access for LifeLens in Settings → LifeLens → Photos.",
-            [
-              { text: "Not Now", style: "cancel" },
-              { text: "Open Settings", onPress: () => void Linking.openSettings() },
-            ],
-          );
-          // Permission denied — keep photo.uri as-is (temp) so the capture isn't lost
-        } else {
-          // Save to camera roll for iCloud backup (best effort)
-          try {
-            await MediaLibrary.createAssetAsync(photo.uri);
-          } catch {
-            // best effort — continue even if camera roll save fails
-          }
-          // Copy to permanent app storage using legacy API
-          try {
-            const destDir = FileSystem.documentDirectory + "lifelens/";
-            await FileSystem.makeDirectoryAsync(destDir, { intermediates: true }).catch(() => {});
-            const destUri = destDir + Date.now() + ".jpg";
-            await FileSystem.copyAsync({ from: photo.uri, to: destUri });
-            permanentUri = destUri;
-          } catch (fsErr) {
-            const msg = fsErr instanceof Error ? fsErr.message : String(fsErr);
-            throw new Error("File copy failed: " + msg);
-          }
+        // Save to camera roll for iCloud backup (best effort — fails silently if permission denied)
+        try {
+          await MediaLibrary.createAssetAsync(photo.uri);
+        } catch {
+          // permission denied or unavailable — continue with local storage
+        }
+        // Copy to permanent app storage using legacy API
+        try {
+          const destDir = FileSystem.documentDirectory + "lifelens/";
+          await FileSystem.makeDirectoryAsync(destDir, { intermediates: true }).catch(() => {});
+          const destUri = destDir + Date.now() + ".jpg";
+          await FileSystem.copyAsync({ from: photo.uri, to: destUri });
+          permanentUri = destUri;
+        } catch (fsErr) {
+          const msg = fsErr instanceof Error ? fsErr.message : String(fsErr);
+          throw new Error("File copy failed: " + msg);
         }
       }
 

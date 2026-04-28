@@ -632,11 +632,13 @@ function PhotoItem({
   photo,
   measurement,
   onPress,
+  onDelete,
   designation,
 }: {
   photo: TrackPhoto;
   measurement: Measurement | null;
   onPress: (photo: TrackPhoto) => void;
+  onDelete: (photo: TrackPhoto) => void;
   designation: string;
 }) {
   const colors = useColors();
@@ -706,12 +708,23 @@ function PhotoItem({
         ) : null}
       </View>
       <View style={styles.photoMeta}>
-        <Text style={[styles.photoDesignation, { color: colors.foreground }]} numberOfLines={1}>
-          {designation}
-        </Text>
-        <Text style={[styles.photoDate, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {formatDateTime(photo.takenAt)}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.photoDesignation, { color: colors.foreground }]} numberOfLines={1}>
+            {designation}
+          </Text>
+          <Text style={[styles.photoDate, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {formatDateTime(photo.takenAt)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          testID={`photo-delete-${photo.id}`}
+          onPress={() => onDelete(photo)}
+          hitSlop={8}
+          style={styles.photoDeleteBtn}
+          accessibilityLabel="Delete photo"
+        >
+          <Ionicons name="trash-outline" size={15} color={colors.mutedForeground} />
+        </TouchableOpacity>
       </View>
     </Pressable>
   );
@@ -844,6 +857,7 @@ export default function TrackDetailScreen() {
   const {
     tracks,
     deleteTrack,
+    deletePhoto,
     getTrackPhotos,
     resolvePhotoSource,
     updateTrackMeasurement,
@@ -1353,6 +1367,23 @@ export default function TrackDetailScreen() {
               } else {
                 setSettingsOpen(true);
               }
+            }}
+            onDelete={(p) => {
+              Alert.alert(
+                "Delete Photo",
+                "Delete this photo? This cannot be undone.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      await deletePhoto(p.id);
+                    },
+                  },
+                ],
+              );
             }}
           />
         )}
@@ -2023,9 +2054,13 @@ const styles = StyleSheet.create({
     aspectRatio: 4 / 3,
   },
   photoMeta: {
-    flexDirection: "column",
-    gap: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     padding: 10,
+  },
+  photoDeleteBtn: {
+    padding: 4,
   },
   photoDesignation: {
     fontSize: 13,

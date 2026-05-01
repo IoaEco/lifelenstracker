@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
-export const COMMON_UNITS = ["cm", "in", "mm", "lbs", "kg", "%"] as const;
+export const COMMON_UNITS = ["cm", "in", "ft", "mm", "m", "lbs", "kg", "oz", "g", "%", "bpm"] as const;
 
 interface Props {
   value: string;

@@ -632,12 +632,14 @@ function PhotoItem({
   photo,
   measurement,
   onPress,
+  onEdit,
   onDelete,
   designation,
 }: {
   photo: TrackPhoto;
   measurement: Measurement | null;
   onPress: (photo: TrackPhoto) => void;
+  onEdit: (photo: TrackPhoto) => void;
   onDelete: (photo: TrackPhoto) => void;
   designation: string;
 }) {
@@ -716,6 +718,15 @@ function PhotoItem({
             {formatDateTime(photo.takenAt)}
           </Text>
         </View>
+        <TouchableOpacity
+          testID={`photo-edit-${photo.id}`}
+          onPress={() => onEdit(photo)}
+          hitSlop={8}
+          style={styles.photoDeleteBtn}
+          accessibilityLabel="Edit measurement"
+        >
+          <Ionicons name="pencil-outline" size={15} color={colors.mutedForeground} />
+        </TouchableOpacity>
         <TouchableOpacity
           testID={`photo-delete-${photo.id}`}
           onPress={() => onDelete(photo)}
@@ -1250,6 +1261,9 @@ export default function TrackDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={styles.doneBtn}>
+          <Text style={[styles.doneBtnText, { color: colors.primary }]}>Done</Text>
+        </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={[styles.headerIcon, { backgroundColor: colors.primary + "20" }]}>
             <Ionicons name={track.iconName} size={18} color={colors.primary} />
@@ -1361,6 +1375,10 @@ export default function TrackDetailScreen() {
             measurement={measurement}
             designation={photoDesignations.get(item.id) ?? `Photo ${item.daySequence ?? 1}`}
             onPress={(p) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setZoomPhoto(p);
+            }}
+            onEdit={(p) => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (measurement) {
                 setEditingPhoto(p);
@@ -1635,6 +1653,14 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 4,
+  },
+  doneBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  doneBtnText: {
+    fontSize: 17,
+    fontFamily: "Inter_600SemiBold",
   },
   headerCenter: {
     flex: 1,

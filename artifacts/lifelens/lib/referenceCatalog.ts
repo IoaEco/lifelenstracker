@@ -6,12 +6,7 @@ export interface ReferenceObject {
   custom?: boolean;
 }
 
-export const REFERENCES: ReferenceObject[] = [
-  { id: "quarter-us", label: "US Quarter", description: "24.26 mm diameter", lengthMm: 24.26 },
-  { id: "penny-us", label: "US Penny", description: "19.05 mm diameter", lengthMm: 19.05 },
-  { id: "euro-1", label: "€1 Coin", description: "23.25 mm diameter", lengthMm: 23.25 },
-  { id: "credit-card", label: "Credit Card", description: "85.60 mm long edge", lengthMm: 85.6 },
-];
+export const REFERENCES: ReferenceObject[] = [];
 
 export const CUSTOM_REFERENCE_ID = "custom-mm";
 

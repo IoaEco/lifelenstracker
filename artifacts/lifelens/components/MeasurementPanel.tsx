@@ -212,7 +212,7 @@ export function MeasurementPanel({ measurement, photos, onEditSettings }: Props)
         </Text>
       ) : (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Capture a photo and enter a value to start tracking.
+          To track progress, enter a measurement each time you take a photo. Tap any photo in the timeline below to add a value.
         </Text>
       )}
 

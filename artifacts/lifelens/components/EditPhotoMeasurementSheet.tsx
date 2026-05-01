@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -95,16 +96,18 @@ export function EditPhotoMeasurementSheet({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable onPress={() => {}}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <Pressable style={styles.backdrop} onPress={onClose}>
+          <Pressable onPress={() => {}}>
             <View
               style={[
                 styles.sheet,
                 {
                   backgroundColor: colors.background,
                   borderColor: colors.border,
-                  paddingBottom: insets.bottom + 20,
                 },
               ]}
             >
@@ -117,85 +120,92 @@ export function EditPhotoMeasurementSheet({
                 </TouchableOpacity>
               </View>
 
-              {photo ? (
-                <Image
-                  source={resolveSrc(photo)}
-                  style={[styles.thumb, { backgroundColor: colors.muted }]}
-                  contentFit="cover"
-                />
-              ) : null}
-
-              <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
-                <TextInput
-                  testID="edit-photo-measurement-input"
-                  style={[styles.input, { color: colors.foreground }]}
-                  value={input}
-                  onChangeText={(t) => {
-                    setInput(t);
-                    if (error) setError(null);
-                  }}
-                  placeholder="0"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="decimal-pad"
-                  autoFocus
-                  maxLength={10}
-                />
-                {measurement.unit ? (
-                  <Text style={[styles.unit, { color: colors.mutedForeground }]}>
-                    {measurement.unit}
-                  </Text>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+              >
+                {photo ? (
+                  <Image
+                    source={resolveSrc(photo)}
+                    style={[styles.thumb, { backgroundColor: colors.muted }]}
+                    contentFit="cover"
+                  />
                 ) : null}
-              </View>
 
-              {error ? (
-                <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
-              ) : null}
-
-              {onMeasureFromPhoto ? (
-                <TouchableOpacity
-                  testID="edit-photo-measure-button"
-                  onPress={() => {
-                    onMeasureFromPhoto();
-                  }}
-                  style={[styles.measureRow, { borderColor: colors.border }]}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="resize-outline" size={18} color={colors.primary} />
-                  <Text style={[styles.measureText, { color: colors.primary }]}>
-                    Measure from photo
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              ) : null}
-
-              <View style={styles.actions}>
-                {photo?.measurementValue != null ? (
-                  <TouchableOpacity
-                    testID="edit-photo-clear-button"
-                    onPress={handleClear}
-                    disabled={saving}
-                    style={[styles.btn, styles.btnSecondary, { borderColor: colors.border }]}
-                  >
-                    <Text style={[styles.btnSecondaryText, { color: colors.destructive }]}>
-                      Clear
+                <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
+                  <TextInput
+                    testID="edit-photo-measurement-input"
+                    style={[styles.input, { color: colors.foreground }]}
+                    value={input}
+                    onChangeText={(t) => {
+                      setInput(t);
+                      if (error) setError(null);
+                    }}
+                    placeholder="0"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="decimal-pad"
+                    autoFocus
+                    maxLength={10}
+                  />
+                  {measurement.unit ? (
+                    <Text style={[styles.unit, { color: colors.mutedForeground }]}>
+                      {measurement.unit}
                     </Text>
+                  ) : null}
+                </View>
+
+                {error ? (
+                  <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
+                ) : null}
+
+                {onMeasureFromPhoto ? (
+                  <TouchableOpacity
+                    testID="edit-photo-measure-button"
+                    onPress={() => {
+                      onMeasureFromPhoto();
+                    }}
+                    style={[styles.measureRow, { borderColor: colors.border }]}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="resize-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.measureText, { color: colors.primary }]}>
+                      Measure from photo
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
                   </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity
-                  testID="edit-photo-save-button"
-                  onPress={handleSave}
-                  disabled={saving}
-                  style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.primary }]}
-                >
-                  <Text style={styles.btnPrimaryText}>
-                    {saving ? "Saving…" : "Save"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+
+                <View style={styles.actions}>
+                  {photo?.measurementValue != null ? (
+                    <TouchableOpacity
+                      testID="edit-photo-clear-button"
+                      onPress={handleClear}
+                      disabled={saving}
+                      style={[styles.btn, styles.btnSecondary, { borderColor: colors.border }]}
+                    >
+                      <Text style={[styles.btnSecondaryText, { color: colors.destructive }]}>
+                        Clear
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity
+                    testID="edit-photo-save-button"
+                    onPress={handleSave}
+                    disabled={saving}
+                    style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.primary }]}
+                  >
+                    <Text style={styles.btnPrimaryText}>
+                      {saving ? "Saving…" : "Save"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </View>
-          </KeyboardAvoidingView>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -212,7 +222,10 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  scrollContent: {
     gap: 14,
+    paddingTop: 14,
   },
   header: {
     flexDirection: "row",

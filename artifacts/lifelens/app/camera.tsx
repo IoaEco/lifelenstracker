@@ -391,6 +391,9 @@ export default function CameraScreen() {
         />
         <View style={[styles.reviewBottom, { paddingBottom: bottomPad + 16 }]}>
           <Text style={styles.reviewLabel}>{measurement.label.toUpperCase()}</Text>
+          <Text style={styles.reviewSubtitle}>
+            Enter the current measurement to track your progress over time.
+          </Text>
           <View style={styles.reviewInputRow}>
             <TextInput
               testID="review-measurement-input"
@@ -401,7 +404,7 @@ export default function CameraScreen() {
                 if (captureError) setCaptureError(null);
                 if (measuredVisuallyForPending) setMeasuredVisuallyForPending(false);
               }}
-              placeholder="0"
+              placeholder={measurement.unit ? `0 ${measurement.unit}` : "0"}
               placeholderTextColor="rgba(255,255,255,0.4)"
               keyboardType="decimal-pad"
               autoFocus
@@ -432,7 +435,7 @@ export default function CameraScreen() {
               style={[styles.reviewBtn, styles.reviewBtnSecondary]}
               activeOpacity={0.8}
             >
-              <Text style={styles.reviewBtnSecondaryText}>Skip value</Text>
+              <Text style={styles.reviewBtnSecondaryText}>Skip for now</Text>
             </TouchableOpacity>
             <TouchableOpacity
               testID="review-save-button"
@@ -454,6 +457,9 @@ export default function CameraScreen() {
               )}
             </TouchableOpacity>
           </View>
+          <Text style={styles.reviewSkipHint}>
+            You can add this later by tapping the photo.
+          </Text>
         </View>
 
         <MeasureFromPhotoModal
@@ -482,12 +488,14 @@ export default function CameraScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: "#000" }]}>
-      {/* Camera */}
-      <CameraView
-        ref={cameraRef}
-        style={[styles.camera, { height: cameraHeight }]}
-        facing={facing}
-      >
+      {/* Camera + overlays */}
+      <View style={{ position: "relative", height: cameraHeight }}>
+        <CameraView
+          ref={cameraRef}
+          style={[styles.camera, { height: cameraHeight }]}
+          facing={facing}
+        />
+
         {/* Previous photo overlay — native only */}
         {showOverlay && previousPhoto && (
           <Image
@@ -528,7 +536,7 @@ export default function CameraScreen() {
             <TiltIndicator x={accel.x} y={accel.y} />
           </View>
         )}
-      </CameraView>
+      </View>
 
       {/* Bottom controls */}
       <View style={[styles.bottomControls, { paddingBottom: bottomPad + 16 }]}>
@@ -849,5 +857,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
     color: "#00D4FF",
+  },
+  reviewSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.55)",
+    lineHeight: 18,
+  },
+  reviewSkipHint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.4)",
+    textAlign: "center",
+    marginTop: 8,
   },
 });

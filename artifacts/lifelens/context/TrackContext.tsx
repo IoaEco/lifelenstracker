@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/expo";
 import * as FileSystem from "expo-file-system";
+import { File } from "expo-file-system";
 import { AppState, Platform } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import React, {
@@ -704,7 +705,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS !== "web") {
         for (const uri of localPhotoUris) {
           try {
-            await FileSystem.deleteAsync(uri, { idempotent: true });
+            new File(uri).delete();
           } catch {
             // ignore individual delete failures
           }
@@ -793,7 +794,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
 
       if (photo && photo.uri && !photo.uri.startsWith("http") && Platform.OS !== "web") {
         try {
-          await FileSystem.deleteAsync(photo.uri, { idempotent: true });
+          new File(photo.uri).delete();
         } catch {
           // ignore
         }

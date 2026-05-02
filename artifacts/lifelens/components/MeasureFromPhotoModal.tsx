@@ -100,8 +100,8 @@ export function MeasureFromPhotoModal({
   const { width: winW, height: winH } = useWindowDimensions();
 
   const imgWidth = Math.min(winW, 600);
-  const topSpace = insets.top + 120;
-  const bottomSpace = insets.bottom + 50;
+  const topSpace = insets.top + 50;
+  const bottomSpace = insets.bottom + 20;
   const maxHeight = Math.max(240, winH - topSpace - bottomSpace);
   const imgHeight = Math.min(maxHeight, imgWidth * (4 / 3));
 
@@ -320,6 +320,9 @@ export function MeasureFromPhotoModal({
 
           {/* Image + endpoints */}
           <View style={styles.imgWrap} onTouchEnd={Keyboard.dismiss}>
+              <View style={styles.imageHint} pointerEvents="none">
+                <Text style={styles.imageHintText}>Drag the line · tap Estimate with AI</Text>
+              </View>
               <GestureDetector gesture={pinch}>
                 <Animated.View
                   style={[
@@ -476,12 +479,6 @@ export function MeasureFromPhotoModal({
               </Text>
             )}
 
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-              Drag the blue line across what you want to measure, then tap Estimate with AI.
-            </Text>
-            <Text style={[styles.accuracyTip, { color: colors.mutedForeground }]}>
-              Tip: For better accuracy, include a person or familiar object in the frame.
-            </Text>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -648,28 +645,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flex: 1,
+    alignSelf: "stretch",
   },
   bottomPanel: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: 280,
-    backgroundColor: "rgba(0,0,0,0.85)",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(0,0,0,0.82)",
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   bottomPanelContent: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    gap: 10,
+    gap: 8,
   },
   aiBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 14,
   },
   aiBtnText: {
@@ -716,17 +711,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },
-  hint: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-  },
   errorText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
   },
-  accuracyTip: {
+  imageHint: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+  imageHintText: {
     fontSize: 11,
     fontFamily: "Inter_400Regular",
-    fontStyle: "italic",
+    color: "rgba(255,255,255,0.85)",
+    textAlign: "center",
   },
 });

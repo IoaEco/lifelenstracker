@@ -150,7 +150,7 @@ export function EditPhotoMeasurementSheet({
                     maxLength={10}
                   />
                   {measurement.unit ? (
-                    <Text style={[styles.unit, { color: colors.mutedForeground }]}>
+                    <Text style={[styles.unit, { color: colors.foreground }]}>
                       {measurement.unit}
                     </Text>
                   ) : null}

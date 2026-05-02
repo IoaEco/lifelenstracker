@@ -670,7 +670,7 @@ function PhotoItem({
             void retryPhotoUpload(photo.id);
           }}
         />
-        {showValueRow ? (
+        {showValueRow && photo.measurementValue != null ? (
           <View
             testID={`photo-value-badge-${photo.id}`}
             style={[
@@ -703,7 +703,7 @@ function PhotoItem({
               >
                 {photo.measurementValue != null
                   ? formatMeasurementValue(photo.measurementValue, measurement!.unit)
-                  : `Add ${measurement!.label.toLowerCase()}`}
+                  : "Add value"}
               </Text>
             </View>
           </View>
@@ -1300,9 +1300,9 @@ export default function TrackDetailScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setSettingsOpen(true);
           }}
-          style={styles.headerIconBtn}
+          style={styles.configureBtn}
         >
-          <Ionicons name="options-outline" size={20} color={colors.foreground} />
+          <Text style={[styles.configureBtnText, { color: colors.mutedForeground }]}>Configure</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={handleDelete} style={styles.headerIconBtn}>
           <Ionicons name="trash-outline" size={20} color={colors.destructive} />
@@ -1379,12 +1379,13 @@ export default function TrackDetailScreen() {
               setZoomPhoto(p);
             }}
             onEdit={(p) => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              if (measurement) {
-                setEditingPhoto(p);
-              } else {
+              if (!measurement) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setSettingsOpen(true);
+                return;
               }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setEditingPhoto(p);
             }}
             onDelete={(p) => {
               Alert.alert(
@@ -1685,6 +1686,14 @@ const styles = StyleSheet.create({
   },
   headerIconBtnDisabled: {
     opacity: 0.5,
+  },
+  configureBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  configureBtnText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
   },
   shareOffscreen: {
     position: "absolute",

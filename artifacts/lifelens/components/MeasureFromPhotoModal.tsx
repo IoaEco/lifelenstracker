@@ -479,6 +479,9 @@ export function MeasureFromPhotoModal({
             <Text style={[styles.hint, { color: colors.mutedForeground }]}>
               Drag the blue line across what you want to measure, then tap Estimate with AI.
             </Text>
+            <Text style={[styles.accuracyTip, { color: colors.mutedForeground }]}>
+              Tip: For better accuracy, include a person or familiar object in the frame.
+            </Text>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -720,5 +723,10 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
+  },
+  accuracyTip: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    fontStyle: "italic",
   },
 });

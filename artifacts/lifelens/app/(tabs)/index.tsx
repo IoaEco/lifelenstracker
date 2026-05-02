@@ -5,6 +5,7 @@ import { router, type Href } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -35,7 +36,7 @@ function formatTimeAgo(dateStr: string): string {
 
 function TrackCard({ track }: { track: Track }) {
   const colors = useColors();
-  const { getTrackPhotos, resolvePhotoSource } = useTrack();
+  const { getTrackPhotos, resolvePhotoSource, deleteTrack } = useTrack();
   const trackPhotos = getTrackPhotos(track.id);
   const latestPhoto = trackPhotos.length > 0 ? trackPhotos[trackPhotos.length - 1] : null;
   const photoCount = trackPhotos.length;
@@ -45,10 +46,27 @@ function TrackCard({ track }: { track: Track }) {
     router.push(`/track/${track.id}`);
   }
 
+  function handleLongPress() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      track.title,
+      "Are you sure you want to delete this track and all its photos?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Track",
+          style: "destructive",
+          onPress: () => deleteTrack(track.id),
+        },
+      ],
+    );
+  }
+
   return (
     <Pressable
       testID={`track-card-${track.id}`}
       onPress={handlePress}
+      onLongPress={handleLongPress}
       style={({ pressed }) => [
         styles.card,
         {
@@ -228,6 +246,11 @@ export default function HomeScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={tracks.length > 0}
+          ListFooterComponent={
+            <Text style={[styles.deleteTip, { color: colors.mutedForeground }]}>
+              Long press a track to delete it
+            </Text>
+          }
         />
       )}
 
@@ -382,5 +405,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
     color: "#000",
+  },
+  deleteTip: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    marginTop: 8,
   },
 });

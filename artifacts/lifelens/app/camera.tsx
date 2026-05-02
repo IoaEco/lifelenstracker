@@ -511,9 +511,11 @@ export default function CameraScreen() {
 
         {/* Top controls */}
         <View style={[styles.topControls, { paddingTop: topPad + 8 }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.controlBtn}>
-            <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.topLeft}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtnLarge}>
+              <Ionicons name="close" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.topRight}>
             <TouchableOpacity
               onPress={() => setShowGrid(!showGrid)}
@@ -666,15 +668,33 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   topControls: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
+  topLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   topRight: {
     flexDirection: "row",
     gap: 8,
+  },
+  closeBtnLarge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   controlBtn: {
     width: 40,

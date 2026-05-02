@@ -3,10 +3,12 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -98,16 +100,20 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable onPress={() => {}}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <View
-              style={[
+        <Pressable style={styles.backdrop} onPress={onClose}>
+          <Pressable onPress={() => {}}>
+            <KeyboardAvoidingView behavior="padding">
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              scrollEnabled={true}
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={[
                 styles.sheet,
                 {
                   backgroundColor: colors.background,
                   borderColor: colors.border,
                   paddingBottom: insets.bottom + 20,
+                  maxHeight: "85%",
                 },
               ]}
             >
@@ -122,6 +128,17 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
               <Text style={[styles.hint, { color: colors.mutedForeground }]}>
                 Pair each photo with a number — perfect for weight, waist, hair length, etc.
               </Text>
+
+              <View style={styles.field}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                  UNIT (OPTIONAL)
+                </Text>
+                <UnitPicker
+                  testID="settings-measurement-unit"
+                  value={unit}
+                  onChange={setUnit}
+                />
+              </View>
 
               <View style={styles.field}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
@@ -142,18 +159,9 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
                   placeholder="e.g. Weight"
                   placeholderTextColor={colors.mutedForeground}
                   maxLength={30}
-                  autoFocus
-                />
-              </View>
-
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                  UNIT (OPTIONAL)
-                </Text>
-                <UnitPicker
-                  testID="settings-measurement-unit"
-                  value={unit}
-                  onChange={setUnit}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                  onBlur={() => Keyboard.dismiss()}
                 />
               </View>
 
@@ -190,10 +198,10 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </KeyboardAvoidingView>
+            </ScrollView>
+            </KeyboardAvoidingView>
+          </Pressable>
         </Pressable>
-      </Pressable>
     </Modal>
   );
 }
@@ -201,7 +209,7 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.85)",
     justifyContent: "flex-end",
   },
   sheet: {

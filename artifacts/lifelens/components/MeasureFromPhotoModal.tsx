@@ -320,9 +320,7 @@ export function MeasureFromPhotoModal({
 
           {/* Image + endpoints */}
           <View style={styles.imgWrap} onTouchEnd={Keyboard.dismiss}>
-              <View style={styles.imageHint} pointerEvents="none">
-                <Text style={styles.imageHintText}>Place S1 at the start · S2 at the end · tap Estimate with AI</Text>
-              </View>
+              
               <GestureDetector gesture={pinch}>
                 <Animated.View
                   style={[
@@ -439,6 +437,9 @@ export function MeasureFromPhotoModal({
                 </>
               )}
             </TouchableOpacity>
+            <Text style={{ color: "#ffffff", fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center", marginTop: 4 }}>
+              Place S1 at the start · S2 at the end
+            </Text>
 
             {aiState.status === "result" && (
               <View style={styles.resultBlock}>
@@ -739,22 +740,5 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
-  },
-  imageHint: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.85)",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    alignItems: "center",
-  },
-  imageHintText: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    color: "#fff",
-    textAlign: "center",
   },
 });

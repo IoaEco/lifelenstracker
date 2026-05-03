@@ -118,7 +118,7 @@ export function ZoomablePhotoModal({
       }
     });
 
-  const composed = Gesture.Simultaneous(pinch, pan, doubleTap);
+  const composed = Gesture.Race(doubleTap, Gesture.Simultaneous(pinch, pan));
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [
@@ -184,7 +184,7 @@ export function ZoomablePhotoModal({
 
         <View style={[styles.footer, { paddingBottom: bottomPad }]}>
           <Text style={styles.footerHint}>
-            Pinch to zoom · double-tap to toggle · drag to pan
+            Pinch to zoom · Double tap to zoom in/out
           </Text>
         </View>
       </View>

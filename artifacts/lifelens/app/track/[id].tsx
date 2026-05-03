@@ -1477,7 +1477,7 @@ export default function TrackDetailScreen() {
 
                 <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
                   {compareMode === "slider"
-                    ? "Drag the divider, pinch to zoom in, or tap a date below to swap photos."
+                    ? "Drag the divider or pinch to zoom. Tap the photos icon below to change photos."
                     : `Tap a tile to zoom in. Tap the photos icon to choose a different photo for comparison (up to ${MAX_GRID_PHOTOS}).`}
                 </Text>
 

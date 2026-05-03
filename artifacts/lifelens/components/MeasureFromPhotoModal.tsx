@@ -321,7 +321,7 @@ export function MeasureFromPhotoModal({
           {/* Image + endpoints */}
           <View style={styles.imgWrap} onTouchEnd={Keyboard.dismiss}>
               <View style={styles.imageHint} pointerEvents="none">
-                <Text style={styles.imageHintText}>Drag the line · tap Estimate with AI</Text>
+                <Text style={styles.imageHintText}>Place S1 at the start · S2 at the end · tap Estimate with AI</Text>
               </View>
               <GestureDetector gesture={pinch}>
                 <Animated.View
@@ -378,6 +378,28 @@ export function MeasureFromPhotoModal({
                 </Animated.View>
               </GestureDetector>
 
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  left: 8,
+                  right: 8,
+                  backgroundColor: "rgba(0,0,0,0.7)",
+                  borderRadius: 8,
+                  padding: 8,
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 6,
+                  zIndex: 10,
+                }}
+              >
+                <Ionicons name="bulb-outline" size={14} color="#FFD93D" />
+                <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 }}>
+                  Tip: Include a familiar object like a coin, pencil, water bottle, or shoe for better AI accuracy.
+                </Text>
+              </View>
+
               {loupePoint && photoSource ? (
                 <Loupe
                   photoSource={photoSource}
@@ -394,6 +416,7 @@ export function MeasureFromPhotoModal({
             style={styles.bottomPanel}
             contentContainerStyle={[styles.bottomPanelContent, { paddingBottom: bottomPad + 8 }]}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
             <TouchableOpacity
               testID="estimate-ai-button"
@@ -652,12 +675,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    maxHeight: 420,
     backgroundColor: "rgba(0,0,0,0.82)",
     paddingHorizontal: 16,
     paddingTop: 8,
   },
   bottomPanelContent: {
     gap: 8,
+    flexGrow: 1,
   },
   aiBtn: {
     flexDirection: "row",
@@ -717,11 +742,11 @@ const styles = StyleSheet.create({
   },
   imageHint: {
     position: "absolute",
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
     zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.85)",
     paddingVertical: 6,
     paddingHorizontal: 12,
     alignItems: "center",
@@ -729,7 +754,7 @@ const styles = StyleSheet.create({
   imageHintText: {
     fontSize: 11,
     fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.85)",
+    color: "#fff",
     textAlign: "center",
   },
 });

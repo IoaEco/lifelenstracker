@@ -297,11 +297,11 @@ function BeforeAfterSlider({
       {/* Swappable date chips below the slider so they don't conflict with the drag handle */}
       <View style={[styles.swapChipRow, { width: imageWidth }]}>
         <TouchableOpacity
-          onPress={onChangeLeft}
+          onPress={onChangeRight}
           style={[styles.swapChip, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
         >
-          <Text style={[styles.swapChipLabel, { color: colors.mutedForeground }]}>BEFORE</Text>
+          <Text style={[styles.swapChipLabel, { color: colors.primary }]}>BEFORE</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
             {designations.get(leftPhoto.id) ?? formatShortDate(leftPhoto.takenAt)}
           </Text>
@@ -319,11 +319,11 @@ function BeforeAfterSlider({
           <Ionicons name="images-outline" size={14} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={onChangeRight}
+          onPress={onChangeLeft}
           style={[styles.swapChip, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
         >
-          <Text style={[styles.swapChipLabel, { color: colors.mutedForeground }]}>AFTER</Text>
+          <Text style={[styles.swapChipLabel, { color: colors.primary }]}>AFTER</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
             {designations.get(rightPhoto.id) ?? formatShortDate(rightPhoto.takenAt)}
           </Text>

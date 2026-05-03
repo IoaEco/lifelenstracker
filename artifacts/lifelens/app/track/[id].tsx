@@ -316,7 +316,7 @@ function BeforeAfterSlider({
                 : "—"}
             </Text>
           ) : null}
-          <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
+          <Ionicons name="images-outline" size={14} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onChangeRight}
@@ -338,7 +338,7 @@ function BeforeAfterSlider({
                 : "—"}
             </Text>
           ) : null}
-          <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
+          <Ionicons name="images-outline" size={14} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -442,7 +442,7 @@ function GridCompare({
               style={styles.gridSwapBtn}
               accessibilityLabel="Swap photo"
             >
-              <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+              <Ionicons name="images-outline" size={16} color={colors.primary} />
             </TouchableOpacity>
             {canRemove ? (
               <TouchableOpacity onPress={() => onRemove(idx)} hitSlop={6}>
@@ -1437,7 +1437,7 @@ export default function TrackDetailScreen() {
                       activeOpacity={0.8}
                     >
                       <Ionicons
-                        name="swap-horizontal-outline"
+                        name="images-outline"
                         size={14}
                         color={compareMode === "slider" ? "#000" : colors.foreground}
                       />
@@ -1478,7 +1478,7 @@ export default function TrackDetailScreen() {
                 <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
                   {compareMode === "slider"
                     ? "Drag the divider, pinch to zoom in, or tap a date below to swap photos."
-                    : `Tap a tile to zoom in. Use the swap icon to pick a different photo (up to ${MAX_GRID_PHOTOS}).`}
+                    : `Tap a tile to zoom in. Tap the photos icon to choose a different photo for comparison (up to ${MAX_GRID_PHOTOS}).`}
                 </Text>
 
                 {compareMode === "slider" ? (

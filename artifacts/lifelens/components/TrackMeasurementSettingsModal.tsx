@@ -100,22 +100,22 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
       animationType="fade"
       onRequestClose={onClose}
     >
-        <Pressable style={styles.backdrop} onPress={onClose}>
-          <Pressable onPress={() => {}}>
-            <KeyboardAvoidingView behavior="padding">
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable onPress={() => {}}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                maxHeight: "85%",
+              },
+            ]}
+          >
             <ScrollView
               keyboardShouldPersistTaps="handled"
-              scrollEnabled={true}
-              automaticallyAdjustKeyboardInsets={true}
-              contentContainerStyle={[
-                styles.sheet,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  paddingBottom: insets.bottom + 20,
-                  maxHeight: "85%",
-                },
-              ]}
+              contentContainerStyle={styles.scrollContent}
             >
               <View style={styles.header}>
                 <Text style={[styles.title, { color: colors.foreground }]}>
@@ -126,19 +126,8 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
                 </TouchableOpacity>
               </View>
               <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-                Pair each photo with a number — perfect for weight, waist, hair length, etc.
+                To track height, waist size, hair length, etc., assign each photo a measurement — your own or AI. A label and unit are required to use AI measurement. Example: Label = Height, Unit = in
               </Text>
-
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                  UNIT (OPTIONAL)
-                </Text>
-                <UnitPicker
-                  testID="settings-measurement-unit"
-                  value={unit}
-                  onChange={setUnit}
-                />
-              </View>
 
               <View style={styles.field}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
@@ -165,43 +154,54 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
                 />
               </View>
 
-              <View style={styles.actions}>
-                {measurement ? (
-                  <TouchableOpacity
-                    onPress={handleRemove}
-                    disabled={saving}
-                    style={[styles.btn, styles.btnSecondary, { borderColor: colors.border }]}
-                  >
-                    <Text style={[styles.btnSecondaryText, { color: colors.destructive }]}>
-                      Remove
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  testID="settings-measurement-save"
-                  onPress={handleSave}
-                  disabled={saving || !label.trim()}
-                  style={[
-                    styles.btn,
-                    {
-                      backgroundColor: label.trim() ? colors.primary : colors.muted,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.btnPrimaryText,
-                      { color: label.trim() ? "#000" : colors.mutedForeground },
-                    ]}
-                  >
-                    {saving ? "Saving…" : "Save"}
-                  </Text>
-                </TouchableOpacity>
+              <View style={styles.field}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                  UNIT
+                </Text>
+                <UnitPicker
+                  testID="settings-measurement-unit"
+                  value={unit}
+                  onChange={setUnit}
+                />
               </View>
             </ScrollView>
-            </KeyboardAvoidingView>
-          </Pressable>
+
+            <View style={[styles.actions, { paddingBottom: insets.bottom + 20 }]}>
+              {measurement ? (
+                <TouchableOpacity
+                  onPress={handleRemove}
+                  disabled={saving}
+                  style={[styles.btn, styles.btnSecondary, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.btnSecondaryText, { color: colors.destructive }]}>
+                    Remove
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                testID="settings-measurement-save"
+                onPress={handleSave}
+                disabled={saving || !label.trim()}
+                style={[
+                  styles.btn,
+                  {
+                    backgroundColor: label.trim() ? colors.primary : colors.muted,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.btnPrimaryText,
+                    { color: label.trim() ? "#000" : colors.mutedForeground },
+                  ]}
+                >
+                  {saving ? "Saving…" : "Save"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -216,6 +216,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
     gap: 14,
@@ -250,7 +252,8 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 4,
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
   btn: {
     flex: 1,

@@ -118,14 +118,6 @@ export function MeasurementPanel({ measurement, photos, onEditSettings }: Props)
             {stats ? formatMeasurementValue(stats.last, measurement.unit) : "—"}
           </Text>
         </View>
-        <TouchableOpacity
-          testID="measurement-settings-button"
-          onPress={onEditSettings}
-          hitSlop={8}
-          style={[styles.settingsBtn, { borderColor: colors.border }]}
-        >
-          <Ionicons name="options-outline" size={18} color={colors.mutedForeground} />
-        </TouchableOpacity>
       </View>
 
       {stats && valuedPhotos.length >= 2 ? (
@@ -247,14 +239,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontFamily: "Inter_700Bold",
     marginTop: 2,
-  },
-  settingsBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   progressSummary: {
     fontSize: 14,

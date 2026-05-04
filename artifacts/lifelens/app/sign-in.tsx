@@ -1,10 +1,8 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useSignIn } from "@clerk/expo";
+import { useSignIn } from "@clerk/expo/legacy";
 import * as Haptics from "expo-haptics";
-import { Link, router, type Href } from "expo-router";
+import { router, type Href } from "expo-router";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,40 +13,65 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { useColors } from "@/hooks/useColors";
+
+type Step = "phone" | "code";
 
 export default function SignInScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { signIn, errors, fetchStatus } = useSignIn();
+  const { isLoaded, signIn, setActive } = useSignIn();
 
-  const [emailAddress, setEmailAddress] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>("phone");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const topPadding = Platform.OS === "web" ? 67 : insets.top;
-
-  async function handleSubmit() {
-    setSubmitError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const { error } = await signIn.password({ emailAddress, password });
-    if (error) {
-      setSubmitError(error.message ?? "Could not sign in.");
-      return;
-    }
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: () => {
-          router.replace("/" as Href);
-        },
-      });
-    } else {
-      setSubmitError("Sign-in did not complete. Try again.");
+  async function handleSendCode() {
+    if (!isLoaded) return;
+    setError(null);
+    setLoading(true);
+    try {
+      await signIn.create({ strategy: "phone_code", identifier: phoneNumber });
+      setStep("code");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? "Could not send code.";
+      setError(msg);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
     }
   }
 
-  const submitting = fetchStatus === "fetching";
+  async function handleVerify() {
+    if (!isLoaded) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await signIn.attemptFirstFactor({ strategy: "phone_code", code });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace("/(tabs)" as Href);
+      } else {
+        setError("Verification did not complete. Try again.");
+      }
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? "Invalid code.";
+      setError(msg);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleChangeNumber() {
+    setCode("");
+    setError(null);
+    setStep("phone");
+  }
 
   return (
     <KeyboardAvoidingView
@@ -57,102 +80,121 @@ export default function SignInScreen() {
     >
       <View
         style={[
-          styles.header,
-          { paddingTop: topPadding + 8, borderBottomColor: colors.border },
+          styles.inner,
+          { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 24 },
         ]}
       >
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.closeBtn}>
-          <Ionicons name="chevron-down" size={24} color={colors.foreground} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Sign in
-        </Text>
-        <View style={styles.closeBtn} />
-      </View>
+        <Text style={[styles.title, { color: colors.foreground }]}>LifeLens</Text>
 
-      <View style={styles.form}>
-        <SocialAuthButtons mode="sign-in" />
-
-        <Text style={[styles.label, { color: colors.mutedForeground }]}>
-          Email address
-        </Text>
-        <TextInput
-          testID="signin-email"
-          style={[
-            styles.input,
-            { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground },
-          ]}
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          placeholder="you@example.com"
-          placeholderTextColor={colors.mutedForeground}
-          value={emailAddress}
-          onChangeText={setEmailAddress}
-        />
-        {errors.fields.identifier && (
-          <Text style={[styles.error, { color: colors.destructive }]}>
-            {errors.fields.identifier.message}
-          </Text>
-        )}
-
-        <Text style={[styles.label, { color: colors.mutedForeground, marginTop: 14 }]}>
-          Password
-        </Text>
-        <TextInput
-          testID="signin-password"
-          style={[
-            styles.input,
-            { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground },
-          ]}
-          secureTextEntry
-          autoComplete="current-password"
-          placeholder="Your password"
-          placeholderTextColor={colors.mutedForeground}
-          value={password}
-          onChangeText={setPassword}
-        />
-        {errors.fields.password && (
-          <Text style={[styles.error, { color: colors.destructive }]}>
-            {errors.fields.password.message}
-          </Text>
-        )}
-
-        {submitError && (
-          <Text style={[styles.error, { color: colors.destructive, marginTop: 8 }]}>
-            {submitError}
-          </Text>
-        )}
-
-        <Pressable
-          testID="signin-submit"
-          onPress={handleSubmit}
-          disabled={!emailAddress || !password || submitting}
-          style={({ pressed }) => [
-            styles.submitBtn,
-            {
-              backgroundColor: colors.primary,
-              opacity: !emailAddress || !password || submitting ? 0.5 : pressed ? 0.85 : 1,
-            },
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <Text style={styles.submitText}>Continue</Text>
-          )}
-        </Pressable>
-
-        <View style={styles.linkRow}>
-          <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
-            Don&apos;t have an account?{" "}
-          </Text>
-          <Link href={"/sign-up" as Href} replace>
-            <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>
-              Sign up
+        {step === "phone" ? (
+          <>
+            <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
+              Save and protect your progress
             </Text>
-          </Link>
-        </View>
+
+            <TextInput
+              testID="signin-phone"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                },
+              ]}
+              keyboardType="phone-pad"
+              placeholder="+1 (555) 000-0000"
+              placeholderTextColor={colors.mutedForeground}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              autoFocus
+            />
+
+            {error && (
+              <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
+            )}
+
+            <Pressable
+              testID="signin-send-code"
+              onPress={handleSendCode}
+              disabled={!phoneNumber.trim() || loading}
+              style={({ pressed }) => [
+                styles.btn,
+                {
+                  backgroundColor: phoneNumber.trim() ? colors.primary : colors.muted,
+                  opacity: !phoneNumber.trim() || loading ? 0.6 : pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.btnText,
+                  { color: phoneNumber.trim() ? "#000" : colors.mutedForeground },
+                ]}
+              >
+                {loading ? "Sending…" : "Send Code"}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+              Enter the 6-digit code sent to {phoneNumber}
+            </Text>
+
+            <TextInput
+              testID="signin-code"
+              style={[
+                styles.input,
+                styles.codeInput,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                },
+              ]}
+              keyboardType="number-pad"
+              placeholder="000000"
+              placeholderTextColor={colors.mutedForeground}
+              value={code}
+              onChangeText={setCode}
+              maxLength={6}
+              autoFocus
+            />
+
+            {error && (
+              <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
+            )}
+
+            <Pressable
+              testID="signin-verify"
+              onPress={handleVerify}
+              disabled={code.length < 6 || loading}
+              style={({ pressed }) => [
+                styles.btn,
+                {
+                  backgroundColor: code.length === 6 ? colors.primary : colors.muted,
+                  opacity: code.length < 6 || loading ? 0.6 : pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.btnText,
+                  { color: code.length === 6 ? "#000" : colors.mutedForeground },
+                ]}
+              >
+                {loading ? "Verifying…" : "Verify"}
+              </Text>
+            </Pressable>
+
+            <Pressable onPress={handleChangeNumber} style={styles.changeNumber}>
+              <Text style={[styles.changeNumberText, { color: colors.mutedForeground }]}>
+                Change number
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -160,33 +202,59 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  inner: {
+    flex: 1,
+    paddingHorizontal: 28,
+    gap: 14,
   },
-  headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
-  closeBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
-  form: { padding: 20, gap: 4 },
-  label: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 6 },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  title: {
+    fontSize: 40,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 2,
+  },
+  tagline: {
     fontSize: 16,
     fontFamily: "Inter_400Regular",
+    marginBottom: 16,
   },
-  error: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 6 },
-  submitBtn: {
-    marginTop: 20,
-    paddingVertical: 14,
+  subtitle: {
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 4,
+  },
+  input: {
+    borderWidth: 1,
     borderRadius: 14,
-    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 18,
+    fontFamily: "Inter_400Regular",
   },
-  submitText: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#000" },
-  linkRow: { marginTop: 18, flexDirection: "row", justifyContent: "center" },
+  codeInput: {
+    letterSpacing: 8,
+    textAlign: "center",
+  },
+  error: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  btn: {
+    paddingVertical: 15,
+    borderRadius: 28,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  btnText: {
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+  },
+  changeNumber: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  changeNumberText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    textDecorationLine: "underline",
+  },
 });

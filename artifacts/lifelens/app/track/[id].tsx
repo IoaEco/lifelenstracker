@@ -1261,9 +1261,6 @@ export default function TrackDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.back()} style={styles.doneBtn}>
-          <Text style={[styles.doneBtnText, { color: colors.primary }]}>Done</Text>
-        </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={[styles.headerIcon, { backgroundColor: colors.primary + "20" }]}>
             <Ionicons name={track.iconName} size={18} color={colors.primary} />
@@ -1654,14 +1651,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 4,
-  },
-  doneBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  doneBtnText: {
-    fontSize: 17,
-    fontFamily: "Inter_600SemiBold",
   },
   headerCenter: {
     flex: 1,

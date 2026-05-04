@@ -1512,10 +1512,6 @@ export default function TrackDetailScreen() {
               <MeasurementPanel
                 measurement={measurement}
                 photos={trackPhotos}
-                onEditSettings={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSettingsOpen(true);
-                }}
               />
             ) : null}
 

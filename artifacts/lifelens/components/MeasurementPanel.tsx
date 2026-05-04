@@ -1,6 +1,5 @@
-import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import type { Measurement, TrackPhoto } from "@/context/TrackContext";
@@ -42,10 +41,9 @@ function buildPath(points: ChartPoint[]): string {
 interface Props {
   measurement: Measurement;
   photos: TrackPhoto[];
-  onEditSettings: () => void;
 }
 
-export function MeasurementPanel({ measurement, photos, onEditSettings }: Props) {
+export function MeasurementPanel({ measurement, photos }: Props) {
   const colors = useColors();
   const { width: winW } = useWindowDimensions();
 
@@ -204,7 +202,7 @@ export function MeasurementPanel({ measurement, photos, onEditSettings }: Props)
         </Text>
       ) : (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          To track progress, enter a measurement each time you take a photo. Tap any photo in the timeline below to add a value.
+          Each photo can have a measurement attached — enter it right after taking the photo, or tap the pencil icon on any photo to add it later. Make sure to configure a unit and label first.
         </Text>
       )}
 

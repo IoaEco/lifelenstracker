@@ -221,12 +221,17 @@ export function MeasureFromPhotoModal({
       if (!uri) return;
       setAiState({ status: "loading" });
       const base64 = await photoToBase64(uri);
-      console.log('API Key present:', !!(process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY), 'Length:', process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY?.length ?? 0);
-      const response = await fetch("http://10.0.0.165:3001/api/ai-estimate", {
+      const API_URL = __DEV__
+        ? "http://10.0.0.165:3001/api/ai-estimate"
+        : "https://api.anthropic.com/v1/messages";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (!__DEV__) {
+        headers["x-api-key"] = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? "";
+        headers["anthropic-version"] = "2023-06-01";
+      }
+      const response = await fetch(API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           model: "claude-sonnet-4-5",
           max_tokens: 64,

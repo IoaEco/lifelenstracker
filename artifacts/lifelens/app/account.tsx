@@ -4,10 +4,8 @@ import * as Haptics from "expo-haptics";
 import { router, type Href } from "expo-router";
 import React from "react";
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -15,41 +13,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useColors } from "@/hooks/useColors";
-import { useTrack } from "@/context/TrackContext";
+import { Image } from "expo-image";
 
-function formatRelative(iso: string | null): string {
-  if (!iso) return "Never";
-  const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000) return "Just now";
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3600_000)}h ago`;
-  return `${Math.floor(diff / 86_400_000)}d ago`;
-}
+import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function AccountScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isSignedIn, signOut } = useAuth();
   const { user } = useUser();
-  const {
-    syncStatus,
-    lastSyncError,
-    lastSyncedAt,
-    syncNow,
-    tracks,
-    photos,
-    backupCounts,
-    retryFailedUploads,
-    cloudBackupEnabled,
-    setCloudBackupEnabled,
-  } = useTrack();
+  const { scheme, setMode } = useTheme();
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
-
-  const totalPhotos = photos.filter((p) => !p.deleted).length;
-  const hasFailures = backupCounts.failed > 0;
-  const isUploading = backupCounts.uploading > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -73,25 +49,34 @@ export default function AccountScreen() {
         <View style={styles.closeBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {!isSignedIn ? (
+      <View style={[styles.appearanceRow, { backgroundColor: colors.card, borderColor: colors.border, margin: 20, marginBottom: 0 }]}>
+        <Ionicons
+          name={scheme === "dark" ? "moon-outline" : "sunny-outline"}
+          size={20}
+          color={colors.foreground}
+        />
+        <Text style={[styles.appearanceLabel, { color: colors.foreground }]}>
+          Appearance
+        </Text>
+        <Switch
+          value={scheme === "dark"}
+          onValueChange={(isDark) => {
+            Haptics.selectionAsync();
+            void setMode(isDark ? "dark" : "light");
+          }}
+          trackColor={{ false: colors.border, true: colors.primary }}
+        />
+      </View>
+
+      <View style={styles.content}>
+        {!isSignedIn && !user ? (
           <>
-            <View
-              style={[
-                styles.heroIcon,
-                { backgroundColor: colors.primary + "20" },
-              ]}
-            >
-              <Ionicons name="cloud-outline" size={44} color={colors.primary} />
+            <View style={[styles.heroIcon, { backgroundColor: colors.primary + "20" }]}>
+              <Ionicons name="person-outline" size={44} color={colors.primary} />
             </View>
             <Text style={[styles.heroTitle, { color: colors.foreground }]}>
-              Back up your tracks
+              Sign in to LifeLens
             </Text>
-            <Text style={[styles.heroText, { color: colors.mutedForeground }]}>
-              Sign in to sync your tracks and photos to the cloud. Switch phones
-              or reinstall the app — your history comes with you.
-            </Text>
-
             <Pressable
               testID="account-signin"
               onPress={() => {
@@ -105,262 +90,44 @@ export default function AccountScreen() {
             >
               <Text style={styles.primaryBtnText}>Sign in</Text>
             </Pressable>
-            <Pressable
-              testID="account-signup"
-              onPress={() => router.push("/sign-up" as Href)}
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>
-                Create an account
-              </Text>
-            </Pressable>
           </>
         ) : (
           <>
-            <View style={[styles.userCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View
-                style={[
-                  styles.avatar,
-                  { backgroundColor: colors.primary + "20" },
-                ]}
-              >
-                <Ionicons name="person" size={28} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.userName, { color: colors.foreground }]}>
-                  {user?.primaryEmailAddress?.emailAddress ?? "Signed in"}
-                </Text>
-                <Text style={[styles.userMeta, { color: colors.mutedForeground }]}>
-                  Cloud backup is {cloudBackupEnabled ? "on" : "off"}
-                </Text>
-              </View>
+            <View style={[styles.heroIcon, { backgroundColor: colors.primary + "20" }]}>
+              <Ionicons name="person" size={44} color={colors.primary} />
             </View>
-
-            <View
-              testID="account-cloud-backup-toggle-card"
-              style={[
-                styles.syncCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.toggleRow}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={[styles.syncTitle, { color: colors.foreground }]}>
-                    Back up photos to cloud
-                  </Text>
-                  <Text
-                    style={[styles.syncMeta, { color: colors.mutedForeground }]}
-                  >
-                    {cloudBackupEnabled
-                      ? "New photos and tracks are uploaded so you can restore them on another device."
-                      : "Photos and tracks stay only on this device. Nothing is uploaded."}
-                  </Text>
-                </View>
-                <Switch
-                  testID="account-cloud-backup-switch"
-                  value={cloudBackupEnabled}
-                  onValueChange={(v) => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    void setCloudBackupEnabled(v);
-                  }}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                />
-              </View>
+            <Text style={[styles.heroTitle, { color: colors.foreground }]}>
+              Signed in
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Image
+                source={require("@/assets/images/icon.png")}
+                style={{ width: 28, height: 28, borderRadius: 6 }}
+                contentFit="cover"
+              />
+              <Text style={[styles.appName, { color: colors.mutedForeground }]}>LifeLens</Text>
             </View>
-
-            <View
-              style={[
-                styles.statsRow,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.statCol}>
-                <Text style={[styles.statNum, { color: colors.foreground }]}>
-                  {tracks.length}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
-                  Tracks
-                </Text>
-              </View>
-              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.statCol}>
-                <Text style={[styles.statNum, { color: colors.foreground }]}>
-                  {totalPhotos}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
-                  Photos
-                </Text>
-              </View>
-            </View>
-
-            {cloudBackupEnabled && (
-            <View
-              testID="account-backup-card"
-              style={[
-                styles.syncCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.syncHeader}>
-                <Ionicons
-                  name={
-                    hasFailures
-                      ? "cloud-offline"
-                      : isUploading
-                        ? "cloud-upload"
-                        : "cloud-done"
-                  }
-                  size={18}
-                  color={hasFailures ? colors.destructive : colors.primary}
-                />
-                <Text style={[styles.syncTitle, { color: colors.foreground }]}>
-                  Photo backup
-                </Text>
-              </View>
-              <Text
-                testID="account-backup-summary"
-                style={[styles.syncMeta, { color: colors.mutedForeground }]}
-              >
-                {backupCounts.backedUp} of {backupCounts.total} photos backed up
-              </Text>
-              {(isUploading || backupCounts.pending > 0) && (
-                <Text style={[styles.syncMeta, { color: colors.mutedForeground }]}>
-                  {isUploading
-                    ? `Uploading ${backupCounts.uploading}…`
-                    : `${backupCounts.pending} waiting to upload`}
-                </Text>
-              )}
-              {hasFailures && (
-                <Text style={[styles.syncError, { color: colors.destructive }]}>
-                  {backupCounts.failed} photo
-                  {backupCounts.failed === 1 ? "" : "s"} failed to back up
-                </Text>
-              )}
-              {hasFailures && (
-                <Pressable
-                  testID="account-retry-failed"
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    void retryFailedUploads();
-                  }}
-                  disabled={isUploading}
-                  style={({ pressed }) => [
-                    styles.syncBtn,
-                    {
-                      backgroundColor: colors.destructive,
-                      opacity: isUploading ? 0.5 : pressed ? 0.8 : 1,
-                    },
-                  ]}
-                >
-                  {isUploading ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="refresh" size={16} color="#fff" />
-                      <Text style={[styles.syncBtnText, { color: "#fff" }]}>
-                        Retry failed uploads
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-              )}
-            </View>
-            )}
-
-            {cloudBackupEnabled && (
-            <View
-              style={[
-                styles.syncCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.syncHeader}>
-                <Ionicons
-                  name={
-                    syncStatus === "syncing"
-                      ? "sync"
-                      : syncStatus === "error"
-                        ? "alert-circle"
-                        : "checkmark-circle"
-                  }
-                  size={18}
-                  color={
-                    syncStatus === "error" ? colors.destructive : colors.primary
-                  }
-                />
-                <Text style={[styles.syncTitle, { color: colors.foreground }]}>
-                  {syncStatus === "syncing"
-                    ? "Syncing…"
-                    : syncStatus === "error"
-                      ? "Sync issue"
-                      : "Up to date"}
-                </Text>
-              </View>
-              <Text style={[styles.syncMeta, { color: colors.mutedForeground }]}>
-                Last sync: {formatRelative(lastSyncedAt)}
-              </Text>
-              {lastSyncError && (
-                <Text style={[styles.syncError, { color: colors.destructive }]}>
-                  {lastSyncError}
-                </Text>
-              )}
-              <Pressable
-                testID="account-sync-now"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  void syncNow();
-                }}
-                disabled={syncStatus === "syncing"}
-                style={({ pressed }) => [
-                  styles.syncBtn,
-                  {
-                    backgroundColor: colors.secondary,
-                    opacity:
-                      syncStatus === "syncing" ? 0.5 : pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                {syncStatus === "syncing" ? (
-                  <ActivityIndicator color={colors.foreground} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="sync" size={16} color={colors.foreground} />
-                    <Text style={[styles.syncBtnText, { color: colors.foreground }]}>
-                      Sync now
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-            </View>
-            )}
+            <Text style={[styles.version, { color: colors.mutedForeground }]}>
+              Version 1.0.0
+            </Text>
 
             <Pressable
               testID="account-signout"
               onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 await signOut();
-                router.back();
+                router.replace("/sign-in" as Href);
               }}
               style={({ pressed }) => [
                 styles.signoutBtn,
-                { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                { backgroundColor: colors.destructive, opacity: pressed ? 0.8 : 1 },
               ]}
             >
-              <Text style={[styles.signoutText, { color: colors.destructive }]}>
-                Sign out
-              </Text>
+              <Text style={styles.signoutText}>Sign out</Text>
             </Pressable>
-
-            <Text style={[styles.footnote, { color: colors.mutedForeground }]}>
-              Your photos remain on this device. Cloud copies let you restore
-              them on a new phone.
-            </Text>
           </>
         )}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -377,29 +144,39 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   closeBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
-  content: { padding: 20, gap: 16, alignItems: "stretch" },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    gap: 12,
+  },
   heroIcon: {
-    alignSelf: "center",
     width: 88,
     height: 88,
     borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 12,
+    marginBottom: 4,
   },
   heroTitle: {
     fontSize: 22,
     fontFamily: "Inter_700Bold",
     textAlign: "center",
-    marginTop: 8,
   },
-  heroText: {
+  appName: {
     fontSize: 15,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+  },
+  version: {
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
-    lineHeight: 22,
+    marginBottom: 16,
   },
   primaryBtn: {
+    width: "100%",
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
@@ -410,75 +187,27 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     color: "#000",
   },
-  secondaryBtn: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  secondaryBtnText: { fontSize: 16, fontFamily: "Inter_500Medium" },
-  userCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  avatar: {
-    width: 56, height: 56, borderRadius: 28,
-    alignItems: "center", justifyContent: "center",
-  },
-  userName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  userMeta: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  statsRow: {
-    flexDirection: "row",
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 16,
-  },
-  statCol: { flex: 1, alignItems: "center", gap: 4 },
-  statDivider: { width: StyleSheet.hairlineWidth },
-  statNum: { fontSize: 22, fontFamily: "Inter_700Bold" },
-  statLabel: { fontSize: 12, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.5 },
-  syncCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 6,
-  },
-  syncHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  syncTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  syncMeta: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  syncError: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4 },
-  syncBtn: {
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  syncBtnText: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  toggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   signoutBtn: {
+    width: "100%",
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    marginTop: 4,
+    marginTop: 8,
   },
-  signoutText: { fontSize: 15, fontFamily: "Inter_500Medium" },
-  footnote: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 18,
-    marginTop: 4,
+  signoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  appearanceRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  appearanceLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Inter_500Medium",
   },
 });

@@ -421,60 +421,17 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const uploadOne = useCallback(
-    async (photo: TrackPhoto): Promise<boolean> => {
-      if (uploadingIdsRef.current.has(photo.id)) return false;
-      markUploading(photo.id, true);
-      try {
-        const objectPath = await uploadPhotoBytes(photo.uri, getToken);
-        const ts = nowIso();
-        const updated = photosRef.current.map((p) =>
-          p.id === photo.id ? { ...p, objectPath, updatedAt: ts } : p,
-        );
-        await savePhotos(updated);
-        markFailed(photo.id, null);
-        return true;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Upload failed";
-        console.warn("Upload failed for photo", photo.id, err);
-        markFailed(photo.id, message);
-        return false;
-      } finally {
-        markUploading(photo.id, false);
-      }
+    async (_photo: TrackPhoto): Promise<boolean> => {
+      return false;
     },
-    [getToken, savePhotos, markUploading, markFailed],
+    [],
   );
 
   const uploadPending = useCallback(
-    async (photoIds?: string[]): Promise<{ uploaded: number; failed: number }> => {
-      const idSet = photoIds ? new Set(photoIds) : null;
-      const candidates = photosRef.current.filter(
-        (p) =>
-          !p.deleted &&
-          !p.objectPath &&
-          p.uri &&
-          !p.uri.startsWith("http") &&
-          (idSet ? idSet.has(p.id) : true),
-      );
-      const startRunId = cloudRunIdRef.current;
-      let uploaded = 0;
-      let failed = 0;
-      for (const photo of candidates) {
-        // Cooperative cancellation: if the user disabled cloud backup
-        // (or signed out) mid-loop, stop before starting the next upload.
-        if (
-          !cloudBackupEnabledRef.current ||
-          cloudRunIdRef.current !== startRunId
-        ) {
-          break;
-        }
-        const ok = await uploadOne(photo);
-        if (ok) uploaded++;
-        else failed++;
-      }
-      return { uploaded, failed };
+    async (_photoIds?: string[]): Promise<{ uploaded: number; failed: number }> => {
+      return { uploaded: 0, failed: 0 };
     },
-    [uploadOne],
+    [],
   );
 
   const syncNow = useCallback(async () => {
@@ -486,11 +443,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     setSyncStatus("syncing");
     setLastSyncError(null);
     try {
-      // 1. Upload bytes for any local photos that are not in the cloud yet.
-      await uploadPending();
-      if (cancelled()) return;
-
-      // 2. Push everything we have locally to the cloud (server merges by updatedAt).
+      // 1. Push everything we have locally to the cloud (server merges by updatedAt).
       const localTracks = tracksRef.current.map(trackToCloud);
       const localPhotos = photosRef.current
         .map(photoToCloud)

@@ -1,4 +1,5 @@
 import { useSignIn, useSignUp } from "@clerk/expo/legacy";
+import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { router, type Href } from "expo-router";
 import React, { useState } from "react";
@@ -118,7 +119,14 @@ export default function SignInScreen() {
           { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 24 },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>LifeLens</Text>
+        <View style={styles.logoContainer}>
+          <Image
+            source={require("@/assets/images/icon.png")}
+            style={{ width: 80, height: 80, borderRadius: 18, marginBottom: 8 }}
+            contentFit="cover"
+          />
+          <Text style={[styles.title, { color: colors.foreground }]}>LifeLens</Text>
+        </View>
 
         {step === "phone" ? (
           <>
@@ -169,6 +177,14 @@ export default function SignInScreen() {
                 {loading ? "Sending…" : "Send Code"}
               </Text>
             </Pressable>
+
+            {phoneNumber.trim() ? (
+              <Pressable onPress={() => setPhoneNumber("")} style={styles.changeNumber}>
+                <Text style={[styles.changeNumberText, { color: colors.mutedForeground }]}>
+                  Try again
+                </Text>
+              </Pressable>
+            ) : null}
           </>
         ) : (
           <>
@@ -224,7 +240,7 @@ export default function SignInScreen() {
 
             <Pressable onPress={handleChangeNumber} style={styles.changeNumber}>
               <Text style={[styles.changeNumberText, { color: colors.mutedForeground }]}>
-                Change number
+                Try again
               </Text>
             </Pressable>
           </>
@@ -290,5 +306,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     textDecorationLine: "underline",
+  },
+  logoContainer: {
+    alignItems: "center",
   },
 });

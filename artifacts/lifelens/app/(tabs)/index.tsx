@@ -17,7 +17,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NewTrackModal } from "@/components/NewTrackModal";
-import { ThemePickerModal } from "@/components/ThemePickerModal";
 import { useColors } from "@/hooks/useColors";
 import { type Track, useTrack } from "@/context/TrackContext";
 
@@ -140,9 +139,8 @@ function TrackCard({ track }: { track: Track }) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { tracks, loading, isCloudEnabled } = useTrack();
+  const { tracks, loading } = useTrack();
   const [showModal, setShowModal] = useState(false);
-  const [showThemeModal, setShowThemeModal] = useState(false);
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
@@ -160,26 +158,19 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPadding + 8, borderBottomColor: colors.border }]}>
         <View>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>LifeLens</Text>
+          <View style={styles.headerTitleRow}>
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={{ width: 28, height: 28, borderRadius: 6, marginRight: 8 }}
+              contentFit="cover"
+            />
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>LifeLens</Text>
+          </View>
           <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
             {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
           </Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            testID="theme-button"
-            onPress={() => {
-              Haptics.selectionAsync();
-              setShowThemeModal(true);
-            }}
-            style={[
-              styles.iconButton,
-              { backgroundColor: colors.muted, borderColor: colors.border },
-            ]}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="contrast-outline" size={20} color={colors.foreground} />
-          </TouchableOpacity>
           <TouchableOpacity
             testID="account-button"
             onPress={() => {
@@ -192,11 +183,7 @@ export default function HomeScreen() {
             ]}
             activeOpacity={0.7}
           >
-            <Ionicons
-              name={isCloudEnabled ? "cloud-done-outline" : "person-circle-outline"}
-              size={20}
-              color={isCloudEnabled ? colors.primary : colors.foreground}
-            />
+            <Ionicons name="person-circle-outline" size={26} color={colors.foreground} />
           </TouchableOpacity>
           <TouchableOpacity
             testID="add-track-button"
@@ -259,10 +246,6 @@ export default function HomeScreen() {
         onClose={() => setShowModal(false)}
       />
 
-      <ThemePickerModal
-        visible={showThemeModal}
-        onClose={() => setShowThemeModal(false)}
-      />
     </View>
   );
 }
@@ -291,6 +274,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 28,

@@ -152,7 +152,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
               TRACK NAME
             </Text>
             <TextInput
@@ -166,7 +166,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
                 },
               ]}
               placeholder="e.g. Weight loss journey"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.foreground + "99"}
               value={title}
               onChangeText={(t) => {
                 setTitle(t);
@@ -184,7 +184,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
               DESCRIPTION (OPTIONAL)
             </Text>
             <TextInput
@@ -197,7 +197,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
                 },
               ]}
               placeholder="What are you tracking?"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={colors.foreground + "99"}
               value={description}
               onChangeText={setDescription}
               maxLength={200}
@@ -208,11 +208,11 @@ export function NewTrackModal({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
               MEASUREMENT (OPTIONAL)
             </Text>
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-              Track a number with each photo (e.g. weight, waist size)
+            <Text style={[styles.hint, { color: colors.foreground }]}>
+              Track the change in each photo by assigning a measurement — either your own or AI.
             </Text>
             <View style={styles.measurementRow}>
               <TextInput
@@ -227,7 +227,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
                   },
                 ]}
                 placeholder="Label (e.g. Weight)"
-                placeholderTextColor={colors.mutedForeground}
+                placeholderTextColor={colors.foreground + "99"}
                 value={measurementLabel}
                 onChangeText={setMeasurementLabel}
                 maxLength={30}
@@ -245,10 +245,10 @@ export function NewTrackModal({ visible, onClose }: Props) {
 
           <View style={styles.field}>
             <View style={styles.categoryHeader}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>
+              <Text style={[styles.label, { color: colors.foreground }]}>
                 CATEGORY
               </Text>
-              <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+              <Text style={[styles.hint, { color: colors.foreground }]}>
                 Long-press a custom one to remove
               </Text>
             </View>
@@ -287,7 +287,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
                       style={[
                         styles.iconLabel,
                         {
-                          color: isSelected ? colors.primary : colors.mutedForeground,
+                          color: isSelected ? colors.primary : colors.foreground,
                         },
                       ]}
                       numberOfLines={1}
@@ -392,6 +392,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     fontFamily: "Inter_400Regular",
+    letterSpacing: 0,
   },
   inputMulti: {
     borderWidth: 1,

@@ -202,7 +202,7 @@ export function MeasurementPanel({ measurement, photos }: Props) {
         </Text>
       ) : (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Each photo can have a measurement attached — enter it right after taking the photo, or tap the pencil icon on any photo to add it later. Make sure to configure a unit and label first.
+          After taking the photo assign a measurement to each photo — either your own or AI estimation. Tap the pencil icon on any photo to add or edit a value. Always configure a unit and label first.
         </Text>
       )}
 

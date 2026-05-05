@@ -49,7 +49,7 @@ export default function AccountScreen() {
         <View style={styles.closeBtn} />
       </View>
 
-      <View style={[styles.appearanceRow, { backgroundColor: colors.card, borderColor: colors.border, margin: 20, marginBottom: 0 }]}>
+      <View style={[styles.appearanceRow, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: 12, padding: 16, margin: 20, marginBottom: 0 }]}>
         <Ionicons
           name={scheme === "dark" ? "moon-outline" : "sunny-outline"}
           size={20}
@@ -64,7 +64,9 @@ export default function AccountScreen() {
             Haptics.selectionAsync();
             void setMode(isDark ? "dark" : "light");
           }}
-          trackColor={{ false: colors.border, true: colors.primary }}
+          trackColor={{ false: "#767577", true: colors.primary }}
+          thumbColor="#ffffff"
+          ios_backgroundColor="#767577"
         />
       </View>
 
@@ -196,14 +198,9 @@ const styles = StyleSheet.create({
   },
   signoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
   appearanceRow: {
-    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   appearanceLabel: {
     flex: 1,

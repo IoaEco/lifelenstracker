@@ -15,16 +15,17 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.reconoclast.lifelens",
+      "bundleIdentifier": "com.ioaeco.lifelens",
       "infoPlist": {
         "NSCameraUsageDescription": "LifeLens uses the camera to capture your progress photos.",
         "NSMotionUsageDescription": "LifeLens uses motion sensors to help you align photos consistently.",
         "NSPhotoLibraryUsageDescription": "LifeLens needs access to your photo library to save your progress photos.",
-        "NSPhotoLibraryAddUsageDescription": "LifeLens saves your progress photos to your photo library."
+        "NSPhotoLibraryAddUsageDescription": "LifeLens saves your progress photos to your photo library.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-     "package": "com.reconoclast.lifelens", 
+      "package": "com.ioaeco.lifelens",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",

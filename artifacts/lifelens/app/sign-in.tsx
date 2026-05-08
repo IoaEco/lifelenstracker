@@ -34,8 +34,16 @@ export default function SignInScreen() {
     setError(null);
     setLoading(true);
     try {
-      const digits = phoneNumber.replace(/\D/g, "");
-      const formatted = `+1${digits.startsWith("1") ? digits.slice(1) : digits}`;
+      const digits = phoneNumber.replace(/\D/g, '');
+      let formatted = digits;
+      if (!formatted.startsWith('+')) {
+        if (formatted.startsWith('1') && formatted.length === 11) {
+          formatted = '+' + formatted;
+        } else {
+          formatted = '+1' + (formatted.startsWith('1') ? formatted.slice(1) : formatted);
+        }
+      }
+      console.log('Formatted number:', formatted);
       // @ts-ignore — appVerificationDisabledForTesting=true bypasses verifier requirement
       const result = await signInWithPhoneNumber(auth, formatted);
       setConfirmation(result);

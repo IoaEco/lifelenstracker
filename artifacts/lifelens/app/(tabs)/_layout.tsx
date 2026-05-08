@@ -1,17 +1,25 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { Redirect, Slot } from 'expo-router';
-import { useAuth } from '@clerk/expo';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function TabLayout() {
-  const { isSignedIn, isLoaded } = useAuth();
-  if (!isLoaded) {
+  const [user, setUser] = useState<any>(undefined);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return unsubscribe;
+  }, []);
+
+  if (user === undefined) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
         <ActivityIndicator size='large' color='#00D4FF' />
       </View>
     );
   }
-  if (!isSignedIn) {
+  if (!user) {
     return <Redirect href='/sign-in' />;
   }
   return <Slot />;

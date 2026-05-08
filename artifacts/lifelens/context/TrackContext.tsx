@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "@clerk/expo";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import * as FileSystem from "expo-file-system";
 import { File } from "expo-file-system";
 import { AppState, Platform } from "react-native";
@@ -257,7 +258,21 @@ async function uploadPhotoBytes(
 }
 
 export function TrackProvider({ children }: { children: React.ReactNode }) {
-  const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
+  const [user, setUser] = useState<any>(undefined);
+  const isSignedIn = !!user;
+  const authLoaded = user !== undefined;
+  const getToken = useCallback(async (): Promise<string | null> => {
+    try {
+      return (await auth.currentUser?.getIdToken()) ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return unsubscribe;
+  }, []);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [photos, setPhotos] = useState<TrackPhoto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -559,11 +574,6 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isSignedIn, cloudBackupEnabled, retryFailedUploads]);
 
-  // Keep a fresh Clerk token in state so we can attach it as an Authorization
-  // header to <Image> requests for cloud-stored photos (which use a sync API).
-  // Using state (not a ref) ensures that when the token arrives or rotates,
-  // resolvePhotoSource's identity changes and consumers rerender with the
-  // fresh header.
   useEffect(() => {
     if (!isSignedIn) {
       setAuthToken(null);
@@ -572,12 +582,9 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const t = await getToken();
+        const t = (await auth.currentUser?.getIdToken()) ?? null;
         if (cancelled) return;
-        setAuthToken((prev) => {
-          const next = t ?? null;
-          return prev === next ? prev : next;
-        });
+        setAuthToken((prev) => (prev === t ? prev : t));
       } catch {
         // ignore — next refresh will retry
       }
@@ -588,7 +595,7 @@ export function TrackProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn]);
 
   // Trigger initial sync when the user signs in (or the app boots already signed in).
   useEffect(() => {

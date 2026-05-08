@@ -1,5 +1,3 @@
-import { ClerkProvider, ClerkLoaded } from "@clerk/expo";
-import { tokenCache } from "@clerk/expo/token-cache";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import React from "react";
@@ -13,9 +11,6 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { TrackProvider } from "@/context/TrackContext";
 
 const queryClient = new QueryClient();
-
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 
 function RootLayoutNav() {
   return (
@@ -46,37 +41,23 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  if (!publishableKey) {
-    throw new Error(
-      "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Restart the dev workflow after enabling auth.",
-    );
-  }
-
   return (
-    <ClerkProvider
-      publishableKey={publishableKey}
-      tokenCache={tokenCache}
-      proxyUrl={proxyUrl}
-    >
-      <ClerkLoaded>
-        <SafeAreaProvider>
-          <ThemeProvider>
-            <ErrorBoundary>
-              <QueryClientProvider client={queryClient}>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <KeyboardProvider>
-                    <CategoriesProvider>
-                      <TrackProvider>
-                        <RootLayoutNav />
-                      </TrackProvider>
-                    </CategoriesProvider>
-                  </KeyboardProvider>
-                </GestureHandlerRootView>
-              </QueryClientProvider>
-            </ErrorBoundary>
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </ClerkLoaded>
-    </ClerkProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <KeyboardProvider>
+                <CategoriesProvider>
+                  <TrackProvider>
+                    <RootLayoutNav />
+                  </TrackProvider>
+                </CategoriesProvider>
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </QueryClientProvider>
+        </ErrorBoundary>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

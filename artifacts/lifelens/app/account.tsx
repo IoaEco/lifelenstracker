@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth, useUser } from "@clerk/expo";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -13,17 +15,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Image } from "expo-image";
-
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function AccountScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { isSignedIn, signOut } = useAuth();
-  const { user } = useUser();
   const { scheme, setMode } = useTheme();
+  const [user, setUser] = useState<any>(undefined);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return unsubscribe;
+  }, []);
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
 
@@ -71,7 +75,7 @@ export default function AccountScreen() {
       </View>
 
       <View style={styles.content}>
-        {!isSignedIn && !user ? (
+        {!user ? (
           <>
             <View style={[styles.heroIcon, { backgroundColor: colors.primary + "20" }]}>
               <Ionicons name="person-outline" size={44} color={colors.primary} />
@@ -117,7 +121,7 @@ export default function AccountScreen() {
               testID="account-signout"
               onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                await signOut();
+                await signOut(auth);
                 router.replace("/sign-in" as Href);
               }}
               style={({ pressed }) => [

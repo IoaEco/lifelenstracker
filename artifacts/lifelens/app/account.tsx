@@ -1,9 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { auth } from "@/lib/firebase";
+import { useAuth, useUser } from "@clerk/expo";
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Platform,
   Pressable,
@@ -14,19 +13,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Image } from "expo-image";
+
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function AccountScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { isSignedIn, signOut } = useAuth();
+  const { user } = useUser();
   const { scheme, setMode } = useTheme();
-  const [user, setUser] = useState<any>(undefined);
-
-  useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged(setUser);
-    return unsubscribe;
-  }, []);
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
 
@@ -74,13 +71,13 @@ export default function AccountScreen() {
       </View>
 
       <View style={styles.content}>
-        {!user ? (
+        {!isSignedIn && !user ? (
           <>
             <View style={[styles.heroIcon, { backgroundColor: colors.primary + "20" }]}>
               <Ionicons name="person-outline" size={44} color={colors.primary} />
             </View>
             <Text style={[styles.heroTitle, { color: colors.foreground }]}>
-              Sign in to LifeLens
+              Sign in to LumenLens
             </Text>
             <Pressable
               testID="account-signin"
@@ -110,7 +107,7 @@ export default function AccountScreen() {
                 style={{ width: 28, height: 28, borderRadius: 6 }}
                 contentFit="cover"
               />
-              <Text style={[styles.appName, { color: colors.mutedForeground }]}>LifeLens</Text>
+              <Text style={[styles.appName, { color: colors.mutedForeground }]}>LumenLens</Text>
             </View>
             <Text style={[styles.version, { color: colors.mutedForeground }]}>
               Version 1.0.0
@@ -120,7 +117,7 @@ export default function AccountScreen() {
               testID="account-signout"
               onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                await auth().signOut();
+                await signOut();
                 router.replace("/sign-in" as Href);
               }}
               style={({ pressed }) => [

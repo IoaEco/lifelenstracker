@@ -793,7 +793,7 @@ function ShareComposite({
               <Text style={styles.shareTileDate}>{formatShortDate(rightPhoto.takenAt)}</Text>
             </View>
           </View>
-          <Text style={styles.shareFooter}>Tracked with LifeLens</Text>
+          <Text style={styles.shareFooter}>Tracked with LumenLens</Text>
         </View>
       </ViewShot>
     </View>
@@ -853,7 +853,7 @@ function TimelapseFrame({
             <Text style={styles.timelapseDate}>
               {photo ? formatShortDate(photo.takenAt) : ""}
             </Text>
-            <Text style={styles.timelapseFooter}>LifeLens</Text>
+            <Text style={styles.timelapseFooter}>LumenLens</Text>
           </View>
         </View>
       </ViewShot>

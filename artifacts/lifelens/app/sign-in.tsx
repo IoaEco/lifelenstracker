@@ -1,4 +1,4 @@
-import { auth } from "@/lib/firebase";
+import { useSignIn, useSignUp } from "@clerk/expo/legacy";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { router, type Href } from "expo-router";
@@ -17,38 +17,44 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 type Step = "phone" | "code";
+type Mode = "signin" | "signup";
 
 export default function SignInScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
+  const { isLoaded: signUpLoaded, signUp, setActive: setActiveSignUp } = useSignUp();
 
   const [step, setStep] = useState<Step>("phone");
+  const [mode, setMode] = useState<Mode>("signin");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [code, setCode] = useState("");
-  const [confirmation, setConfirmation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSendCode() {
+    if (!signInLoaded || !signUpLoaded) return;
     setError(null);
     setLoading(true);
     try {
-      const digits = phoneNumber.replace(/\D/g, '');
-      let formatted = digits;
-      if (!formatted.startsWith('+')) {
-        if (formatted.startsWith('1') && formatted.length === 11) {
-          formatted = '+' + formatted;
-        } else {
-          formatted = '+1' + (formatted.startsWith('1') ? formatted.slice(1) : formatted);
-        }
+      const digits = phoneNumber.replace(/\D/g, "");
+      const formatted = `+1${digits.startsWith("1") ? digits.slice(1) : digits}`;
+      console.log("Attempting with:", formatted);
+      try {
+        await signIn.create({ strategy: "phone_code", identifier: formatted });
+        setMode("signin");
+        setStep("code");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (signInErr: any) {
+        await signUp.create({ phoneNumber: formatted });
+        await signUp.preparePhoneNumberVerification();
+        setMode("signup");
+        setStep("code");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      console.log('Formatted number:', formatted);
-      const result = await auth().signInWithPhoneNumber(formatted);
-      setConfirmation(result);
-      setStep("code");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      setError(err?.message ?? "Could not send code.");
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? "Could not send code.";
+      setError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -56,15 +62,39 @@ export default function SignInScreen() {
   }
 
   async function handleVerify() {
-    if (!confirmation) return;
+    if (!signInLoaded || !signUpLoaded) return;
     setError(null);
     setLoading(true);
     try {
-      await confirmation.confirm(code);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)" as Href);
+      if (mode === "signup") {
+        let result = await signUp.attemptPhoneNumberVerification({ code });
+        console.log("signUp verify result status:", result.status);
+        console.log("SignUp result:", JSON.stringify(result));
+        if (result.status === "missing_requirements") {
+          result = await signUp.update({});
+        }
+        if (result.status === "complete") {
+          await setActiveSignUp({ session: result.createdSessionId });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          router.replace("/(tabs)" as Href);
+        } else {
+          setError("Status: " + result.status);
+        }
+      } else {
+        const result = await signIn.attemptFirstFactor({ strategy: "phone_code", code });
+        console.log("signIn verify result status:", result.status);
+        console.log("SignIn result:", JSON.stringify(result));
+        if (result.status === "complete") {
+          await setActiveSignIn({ session: result.createdSessionId });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          router.replace("/(tabs)" as Href);
+        } else {
+          setError("Status: " + result.status);
+        }
+      }
     } catch (err: any) {
-      setError(err?.message ?? "Invalid code.");
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? "Invalid code.";
+      setError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -74,7 +104,7 @@ export default function SignInScreen() {
   function handleChangeNumber() {
     setCode("");
     setError(null);
-    setConfirmation(null);
+    setMode("signin");
     setStep("phone");
   }
 
@@ -95,7 +125,7 @@ export default function SignInScreen() {
             style={{ width: 80, height: 80, borderRadius: 18, marginBottom: 8 }}
             contentFit="cover"
           />
-          <Text style={[styles.title, { color: colors.foreground }]}>LifeLens</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>LumenLens</Text>
         </View>
 
         {step === "phone" ? (

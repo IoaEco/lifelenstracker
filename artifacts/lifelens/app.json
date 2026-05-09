@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LifeLens",
+    "name": "LumenLens",
     "slug": "lifelens",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,10 +19,10 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "useModularHeaders": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "LifeLens uses the camera to capture your progress photos.",
-        "NSMotionUsageDescription": "LifeLens uses motion sensors to help you align photos consistently.",
-        "NSPhotoLibraryUsageDescription": "LifeLens needs access to your photo library to save your progress photos.",
-        "NSPhotoLibraryAddUsageDescription": "LifeLens saves your progress photos to your photo library.",
+        "NSCameraUsageDescription": "LumenLens uses the camera to capture your progress photos.",
+        "NSMotionUsageDescription": "LumenLens uses motion sensors to help you align photos consistently.",
+        "NSPhotoLibraryUsageDescription": "LumenLens needs access to your photo library to save your progress photos.",
+        "NSPhotoLibraryAddUsageDescription": "LumenLens saves your progress photos to your photo library.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -57,15 +57,15 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "LifeLens uses the camera to capture your progress photos.",
+          "cameraPermission": "LumenLens uses the camera to capture your progress photos.",
           "microphonePermission": "false"
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "LifeLens needs access to your photo library to save your before/after images.",
-          "savePhotosPermission": "LifeLens needs permission to save your before/after images to your photo library.",
+          "photosPermission": "LumenLens needs access to your photo library to save your before/after images.",
+          "savePhotosPermission": "LumenLens needs permission to save your before/after images to your photo library.",
           "isAccessMediaLocationEnabled": false
         }
       ]

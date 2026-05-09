@@ -340,7 +340,7 @@ export default function CameraScreen() {
         </View>
         <Text style={styles.permTitle}>Camera Access Needed</Text>
         <Text style={styles.permText}>
-          LifeLens needs camera access to capture your progress photos
+          LumenLens needs camera access to capture your progress photos
         </Text>
         {permission.canAskAgain ? (
           <TouchableOpacity

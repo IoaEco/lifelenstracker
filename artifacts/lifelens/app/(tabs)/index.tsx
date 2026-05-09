@@ -164,7 +164,7 @@ export default function HomeScreen() {
               style={{ width: 28, height: 28, borderRadius: 6, marginRight: 8 }}
               contentFit="cover"
             />
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>LifeLens</Text>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>LumenLens</Text>
           </View>
           <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
             {tracks.length} {tracks.length === 1 ? "track" : "tracks"}

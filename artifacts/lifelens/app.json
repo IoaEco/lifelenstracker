@@ -17,6 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.ioaeco.lifelens",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "useModularHeaders": true,
       "infoPlist": {
         "NSCameraUsageDescription": "LifeLens uses the camera to capture your progress photos.",
         "NSMotionUsageDescription": "LifeLens uses motion sensors to help you align photos consistently.",
@@ -45,8 +46,6 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
       [
         "expo-router",
         {

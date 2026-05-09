@@ -1,4 +1,3 @@
-import { signInWithPhoneNumber } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -44,8 +43,7 @@ export default function SignInScreen() {
         }
       }
       console.log('Formatted number:', formatted);
-      // @ts-ignore — appVerificationDisabledForTesting=true bypasses verifier requirement
-      const result = await signInWithPhoneNumber(auth, formatted);
+      const result = await auth().signInWithPhoneNumber(formatted);
       setConfirmation(result);
       setStep("code");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

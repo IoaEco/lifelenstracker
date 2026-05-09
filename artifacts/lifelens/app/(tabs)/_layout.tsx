@@ -1,4 +1,3 @@
-import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Redirect, Slot } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -8,7 +7,7 @@ export default function TabLayout() {
   const [user, setUser] = useState<any>(undefined);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    const unsubscribe = auth().onAuthStateChanged(setUser);
     return unsubscribe;
   }, []);
 

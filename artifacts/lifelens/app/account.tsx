@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -25,7 +24,7 @@ export default function AccountScreen() {
   const [user, setUser] = useState<any>(undefined);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    const unsubscribe = auth().onAuthStateChanged(setUser);
     return unsubscribe;
   }, []);
 
@@ -121,7 +120,7 @@ export default function AccountScreen() {
               testID="account-signout"
               onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                await signOut(auth);
+                await auth().signOut();
                 router.replace("/sign-in" as Href);
               }}
               style={({ pressed }) => [

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from 'expo-file-system';
 import { Image } from "expo-image";
 import React, { useEffect, useRef, useState } from "react";
 import type { GestureResponderHandlers } from "react-native";
@@ -75,17 +76,10 @@ function getPhotoUri(source: PhotoSource | null): string | null {
 }
 
 async function photoToBase64(uri: string): Promise<string> {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: 'base64' as any,
   });
+  return base64;
 }
 
 export function MeasureFromPhotoModal({

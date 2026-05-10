@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from "expo-image";
 import React, { useEffect, useRef, useState } from "react";
 import type { GestureResponderHandlers } from "react-native";
@@ -76,23 +75,10 @@ function getPhotoUri(source: PhotoSource | null): string | null {
 }
 
 async function photoToBase64(uri: string): Promise<string> {
-  let readableUri = uri;
-
-  if (uri.startsWith('ph://')) {
-    const dest = `${FileSystem.cacheDirectory}measure_photo_${Date.now()}.jpg`;
-    await FileSystem.copyAsync({ from: uri, to: dest });
-    readableUri = dest;
-  }
-
-  const fileInfo = await FileSystem.getInfoAsync(readableUri);
-  if (!fileInfo.exists) {
-    throw new Error(`File not found: ${readableUri}`);
-  }
-
-  const base64 = await FileSystem.readAsStringAsync(readableUri, {
-    encoding: 'base64' as any,
-  });
-  return base64;
+  const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+  const result = await manipulateAsync(uri, [], { format: SaveFormat.JPEG, base64: true });
+  if (!result.base64) throw new Error('Failed to get base64');
+  return result.base64;
 }
 
 export function MeasureFromPhotoModal({

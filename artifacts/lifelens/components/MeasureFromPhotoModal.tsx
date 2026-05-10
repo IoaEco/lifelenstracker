@@ -76,7 +76,20 @@ function getPhotoUri(source: PhotoSource | null): string | null {
 }
 
 async function photoToBase64(uri: string): Promise<string> {
-  const base64 = await FileSystem.readAsStringAsync(uri, {
+  let readableUri = uri;
+
+  if (uri.startsWith('ph://')) {
+    const dest = `${FileSystem.cacheDirectory}measure_photo_${Date.now()}.jpg`;
+    await FileSystem.copyAsync({ from: uri, to: dest });
+    readableUri = dest;
+  }
+
+  const fileInfo = await FileSystem.getInfoAsync(readableUri);
+  if (!fileInfo.exists) {
+    throw new Error(`File not found: ${readableUri}`);
+  }
+
+  const base64 = await FileSystem.readAsStringAsync(readableUri, {
     encoding: 'base64' as any,
   });
   return base64;

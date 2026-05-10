@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from "expo-image";
 import React, { useEffect, useRef, useState } from "react";
 import type { GestureResponderHandlers } from "react-native";

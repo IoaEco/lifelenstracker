@@ -12,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Alert,
   TextInput,
   TouchableOpacity,
   View,
@@ -227,6 +228,7 @@ export function MeasureFromPhotoModal({
         'x-api-key': process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
         'anthropic-version': '2023-06-01',
       };
+      Alert.alert('Debug', `API Key: ${process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ? 'PRESENT (length: ' + process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY.length + ')' : 'MISSING'}`);
       const response = await fetch(API_URL, {
         method: "POST",
         headers,

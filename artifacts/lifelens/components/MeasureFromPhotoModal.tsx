@@ -212,10 +212,14 @@ export function MeasureFromPhotoModal({
     console.log('Button tapped');
     console.log('Button disabled:', !photoSource || aiState.status === "loading");
     try {
+      Alert.alert('Step 1', 'Starting estimate');
       const uri = getPhotoUri(photoSource);
+      Alert.alert('Step 2', `URI: ${uri ? 'found' : 'null'}`);
       if (!uri) return;
-      setAiState({ status: "loading" });
+      setAiState({ status: 'loading' });
+      Alert.alert('Step 3', 'Converting to base64...');
       const base64 = await photoToBase64(uri);
+      Alert.alert('Step 4', `Base64 length: ${base64?.length}`);
       const API_URL = 'https://api.anthropic.com/v1/messages';
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',

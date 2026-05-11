@@ -12,7 +12,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  Alert,
   TextInput,
   TouchableOpacity,
   View,
@@ -28,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import type { PhotoSource } from "@/context/TrackContext";
+import * as FileSystem from 'expo-file-system'; // Optional, but useful
 
 interface Point {
   x: number;
@@ -74,13 +74,6 @@ function getPhotoUri(source: PhotoSource | null): string | null {
   return null;
 }
 
-async function photoToBase64(uri: string): Promise<string> {
-  const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
-  const result = await manipulateAsync(uri, [], { format: SaveFormat.JPEG, base64: true });
-  if (!result.base64) throw new Error('Failed to get base64');
-  return result.base64;
-}
-
 export function MeasureFromPhotoModal({
   visible,
   photoSource,
@@ -111,6 +104,10 @@ export function MeasureFromPhotoModal({
   const [aiState, setAiState] = useState<AiState>({ status: "idle" });
   const [adjustedValue, setAdjustedValue] = useState<string>("");
 
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+
+  // Reset state when modal opens
   useEffect(() => {
     if (visible) {
       setSubA({ x: imgWidth * 0.2, y: imgHeight * 0.5 });
@@ -121,11 +118,7 @@ export function MeasureFromPhotoModal({
       scale.value = 1;
       savedScale.value = 1;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
-
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
+  }, [visible, imgWidth, imgHeight]);
 
   const pinch = Gesture.Pinch()
     .onUpdate((e) => {
@@ -146,12 +139,12 @@ export function MeasureFromPhotoModal({
     };
   }
 
+  // Pan responders (unchanged but cleaned)
   function buildPan(key: EndpointKey, getVal: () => Point, setVal: (p: Point) => void) {
     const startRef = { x: 0, y: 0 };
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         const cur = getVal();
         startRef.x = cur.x;
@@ -181,7 +174,6 @@ export function MeasureFromPhotoModal({
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         const a = getA();
         const b = getB();
@@ -193,8 +185,6 @@ export function MeasureFromPhotoModal({
         setA(clampPoint({ x: startA.x + gesture.dx / s, y: startA.y + gesture.dy / s }));
         setB(clampPoint({ x: startB.x + gesture.dx / s, y: startB.y + gesture.dy / s }));
       },
-      onPanResponderRelease: () => {},
-      onPanResponderTerminate: () => {},
     });
   }
 
@@ -207,32 +197,43 @@ export function MeasureFromPhotoModal({
     setSubB,
   )).current;
 
+  // ==================== IMPROVED AI ESTIMATION ====================
   async function handleEstimate() {
-    console.log('Button tapped');
-    console.log('Button disabled:', !photoSource || aiState.status === "loading");
+    if (!photoSource) return;
+
     try {
-      Alert.alert('Step 1', 'Starting estimate');
+      setAiState({ status: "loading" });
+
       const uri = getPhotoUri(photoSource);
-      Alert.alert('Step 2', `URI: ${uri ? 'found' : 'null'}`);
-      if (!uri) return;
-      setAiState({ status: 'loading' });
-      Alert.alert('Step 3', 'Converting to base64...');
-      const base64 = await photoToBase64(uri);
-      Alert.alert('Step 4', `Base64 length: ${base64?.length}`);
-      const API_URL = 'https://api.anthropic.com/v1/messages';
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-        'anthropic-version': '2023-06-01',
-      };
-      Alert.alert('Debug', `API Key: ${process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ? 'PRESENT (length: ' + process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY.length + ')' : 'MISSING'}`);
-      const response = await fetch(API_URL, {
+      if (!uri) throw new Error("No photo available");
+
+      // Resize image first (very important for speed and cost)
+      const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+      const manipulated = await manipulateAsync(
+        uri,
+        [{ resize: { width: 1200 } }],
+        { compress: 0.85, format: SaveFormat.JPEG, base64: true }
+      );
+
+      if (!manipulated.base64) throw new Error("Failed to process image");
+
+      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+      if (!apiKey) throw new Error("Anthropic API key is missing");
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: "POST",
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 64,
-          system: `You are a measurement tool. Respond with ONLY a single number. No words, no units, no explanation. Just digits and optionally a decimal point. Example response: 42.5`,
+          model: "claude-sonnet-4-6",        // Best current model
+          max_tokens: 100,
+          temperature: 0.0,
+          system: `You are an expert at estimating real-world lengths from photos.
+Respond with ONLY a single number (with at most one decimal place). 
+No units, no explanation, no extra text whatsoever.`,
           messages: [
             {
               role: "user",
@@ -242,7 +243,7 @@ export function MeasureFromPhotoModal({
                   source: {
                     type: "base64",
                     media_type: "image/jpeg",
-                    data: base64,
+                    data: manipulated.base64,
                   },
                 },
                 {
@@ -254,27 +255,33 @@ export function MeasureFromPhotoModal({
           ],
         }),
       });
-      if (!response.ok) throw new Error(`API error ${response.status}`);
-      const data = await response.json();
-      const text: string = (data?.content?.[0]?.text ?? "").trim();
-      console.log('AI raw response:', JSON.stringify(data?.content));
-      if (text.toLowerCase() === "null" || text === "") {
-        setAiState({ status: "error", message: "AI couldn't estimate from this photo." });
-        return;
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      const text = (data?.content?.[0]?.text ?? "").trim();
+
       const matches = text.match(/[\d.]+/g);
       const num = matches ? parseFloat(matches[matches.length - 1]) : NaN;
-      if (!Number.isFinite(num)) {
-        setAiState({ status: "error", message: "AI returned an unexpected response." });
+
+      if (!Number.isFinite(num) || num <= 0) {
+        setAiState({
+          status: "error",
+          message: "AI could not detect a valid measurement. Try a clearer photo with a reference object.",
+        });
         return;
       }
+
       setAiState({ status: "result", estimate: num });
       setAdjustedValue(formatNumber(num));
-    } catch (err) {
-      console.error('Estimation error:', err);
+
+    } catch (err: any) {
+      console.error('AI Estimation Error:', err);
       setAiState({
         status: "error",
-        message: err instanceof Error ? `AI Error: ${err.message}` : `AI Error: ${String(err)}`,
+        message: err.message || "Failed to get AI estimate. Please try again.",
       });
     }
   }
@@ -298,137 +305,75 @@ export function MeasureFromPhotoModal({
 
   return (
     <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View
-          testID="measure-from-photo-modal"
-          style={[styles.container, { backgroundColor: "#000" }]}
-        >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={[styles.container, { backgroundColor: "#000" }]}>
+
           {/* Header */}
           <View style={[styles.header, { paddingTop: topPad }]}>
-            <TouchableOpacity
-              testID="measure-cancel-button"
-              onPress={onClose}
-              style={styles.headerBtn}
-              hitSlop={8}
-            >
+            <TouchableOpacity onPress={onClose} style={styles.headerBtn} hitSlop={8}>
               <Ionicons name="close" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Measure {measurementLabel}</Text>
             <View style={{ width: 32 }} />
           </View>
 
-          {/* Image + endpoints */}
+          {/* Image Area */}
           <View style={styles.imgWrap} onTouchEnd={Keyboard.dismiss}>
-              
-              <GestureDetector gesture={pinch}>
-                <Animated.View
-                  style={[
-                    { width: imgWidth, height: imgHeight, overflow: "hidden" },
-                    imgAnimatedStyle,
-                  ]}
-                >
-                  {photoSource ? (
-                    <Image
-                      source={photoSource}
-                      style={{ width: imgWidth, height: imgHeight }}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View
-                      style={{ width: imgWidth, height: imgHeight, backgroundColor: "#111" }}
-                    />
-                  )}
-
-                  <Svg
-                    pointerEvents="none"
-                    width={imgWidth}
-                    height={imgHeight}
-                    style={StyleSheet.absoluteFill}
-                  >
-                    <Line
-                      x1={subA.x}
-                      y1={subA.y}
-                      x2={subB.x}
-                      y2={subB.y}
-                      stroke="#00D4FF"
-                      strokeWidth={2}
-                    />
-                  </Svg>
-
-                  <LineDragArea a={subA} b={subB} panHandlers={subLinePan.panHandlers} />
-                  <Endpoint
-                    testID="endpoint-subA"
-                    point={subA}
-                    color="#00D4FF"
-                    label="S1"
-                    panHandlers={subAPan.panHandlers}
-                    active={activeEndpoint === "subA"}
+            <GestureDetector gesture={pinch}>
+              <Animated.View style={[{ width: imgWidth, height: imgHeight, overflow: "hidden" }, imgAnimatedStyle]}>
+                {photoSource ? (
+                  <Image
+                    source={photoSource}
+                    style={{ width: imgWidth, height: imgHeight }}
+                    contentFit="cover"
                   />
-                  <Endpoint
-                    testID="endpoint-subB"
-                    point={subB}
-                    color="#00D4FF"
-                    label="S2"
-                    panHandlers={subBPan.panHandlers}
-                    active={activeEndpoint === "subB"}
+                ) : (
+                  <View style={{ width: imgWidth, height: imgHeight, backgroundColor: "#111" }} />
+                )}
+
+                <Svg pointerEvents="none" width={imgWidth} height={imgHeight} style={StyleSheet.absoluteFill}>
+                  <Line
+                    x1={subA.x} y1={subA.y}
+                    x2={subB.x} y2={subB.y}
+                    stroke="#00D4FF" strokeWidth={2}
                   />
-                </Animated.View>
-              </GestureDetector>
+                </Svg>
 
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  top: 8,
-                  left: 8,
-                  right: 8,
-                  backgroundColor: "rgba(0,0,0,0.7)",
-                  borderRadius: 8,
-                  padding: 8,
-                  flexDirection: "row",
-                  alignItems: "flex-start",
-                  gap: 6,
-                  zIndex: 10,
-                }}
-              >
-                <Ionicons name="bulb-outline" size={14} color="#FFD93D" />
-                <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 }}>
-                  Tip: Include a familiar object like a coin, pencil, water bottle, or shoe for better AI accuracy.
-                </Text>
-              </View>
+                <LineDragArea a={subA} b={subB} panHandlers={subLinePan.panHandlers} />
+                <Endpoint point={subA} color="#00D4FF" label="S1" panHandlers={subAPan.panHandlers} active={activeEndpoint === "subA"} />
+                <Endpoint point={subB} color="#00D4FF" label="S2" panHandlers={subBPan.panHandlers} active={activeEndpoint === "subB"} />
+              </Animated.View>
+            </GestureDetector>
 
-              {loupePoint && photoSource ? (
-                <Loupe
-                  photoSource={photoSource}
-                  focusX={loupePoint.x}
-                  focusY={loupePoint.y}
-                  imgWidth={imgWidth}
-                  imgHeight={imgHeight}
-                />
-              ) : null}
+            {/* Tip Banner */}
+            <View style={styles.tipBanner}>
+              <Ionicons name="bulb-outline" size={14} color="#FFD93D" />
+              <Text style={styles.tipText}>
+                Tip: Include a familiar object (coin, bottle, hand, etc.) for better AI accuracy.
+              </Text>
+            </View>
+
+            {loupePoint && photoSource && (
+              <Loupe
+                photoSource={photoSource}
+                focusX={loupePoint.x}
+                focusY={loupePoint.y}
+                imgWidth={imgWidth}
+                imgHeight={imgHeight}
+              />
+            )}
           </View>
 
-          {/* Bottom panel */}
+          {/* Bottom Panel */}
           <ScrollView
             style={styles.bottomPanel}
             contentContainerStyle={[styles.bottomPanelContent, { paddingBottom: bottomPad + 8 }]}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
           >
             <TouchableOpacity
-              testID="estimate-ai-button"
               onPress={handleEstimate}
               disabled={!photoSource || aiState.status === "loading"}
-              style={[
-                styles.aiBtn,
-                {
-                  backgroundColor: colors.primary,
-                  opacity: !photoSource || aiState.status === "loading" ? 0.6 : 1,
-                },
-              ]}
+              style={[styles.aiBtn, { backgroundColor: colors.primary, opacity: !photoSource || aiState.status === "loading" ? 0.6 : 1 }]}
             >
               {aiState.status === "loading" ? (
                 <ActivityIndicator size="small" color="#000" />
@@ -439,60 +384,34 @@ export function MeasureFromPhotoModal({
                 </>
               )}
             </TouchableOpacity>
-            <Text style={{ color: "#ffffff", fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center", marginTop: 4 }}>
-              Place S1 at the start · S2 at the end
-            </Text>
+
+            <Text style={styles.instructionText}>Place S1 at the start · S2 at the end</Text>
 
             {aiState.status === "result" && (
               <View style={styles.resultBlock}>
                 <Text style={[styles.estimateText, { color: colors.foreground }]}>
-                  AI estimate:{" "}
-                  <Text style={{ color: colors.primary }}>
-                    {formatNumber(aiState.estimate)} {measurementUnit}
-                  </Text>
-                  {" "}— does this look right?
+                  AI estimate: <Text style={{ color: colors.primary }}>{formatNumber(aiState.estimate)} {measurementUnit}</Text>
                 </Text>
                 <Text style={[styles.estimateNote, { color: colors.mutedForeground }]}>
-                  AI estimates may vary. Adjust if needed.
+                  Adjust below if needed
                 </Text>
+
                 <View style={styles.adjustRow}>
                   <TextInput
-                    testID="adjusted-value-input"
                     value={adjustedValue}
                     onChangeText={setAdjustedValue}
                     keyboardType="decimal-pad"
-                    style={[
-                      styles.adjustInput,
-                      {
-                        color: colors.foreground,
-                        borderColor: colors.border,
-                        backgroundColor: colors.card,
-                      },
-                    ]}
+                    style={[styles.adjustInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
                     maxLength={12}
                   />
-                  <Text style={[styles.adjustUnit, { color: colors.mutedForeground }]}>
-                    {measurementUnit}
-                  </Text>
+                  <Text style={[styles.adjustUnit, { color: colors.mutedForeground }]}>{measurementUnit}</Text>
                   <TouchableOpacity
-                    testID="measure-accept-button"
                     onPress={handleAccept}
                     disabled={!canAccept}
-                    style={[
-                      styles.acceptBtn,
-                      {
-                        backgroundColor: canAccept ? colors.primary : colors.muted,
-                        opacity: canAccept ? 1 : 0.6,
-                      },
-                    ]}
+                    style={[styles.acceptBtn, { backgroundColor: canAccept ? colors.primary : colors.muted }]}
                   >
-                    <Text
-                      style={[
-                        styles.acceptText,
-                        { color: canAccept ? "#000" : colors.mutedForeground },
-                      ]}
-                    >
-                      Use value
+                    <Text style={[styles.acceptText, { color: canAccept ? "#000" : colors.mutedForeground }]}>
+                      Use this value
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -504,7 +423,6 @@ export function MeasureFromPhotoModal({
                 {aiState.message}
               </Text>
             )}
-
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -512,24 +430,17 @@ export function MeasureFromPhotoModal({
   );
 }
 
-function Endpoint({
-  point,
-  color,
-  label,
-  panHandlers,
-  active,
-  testID,
-}: {
+/* ====================== Helper Components ====================== */
+
+function Endpoint({ point, color, label, panHandlers, active }: {
   point: Point;
   color: string;
   label: string;
   panHandlers: GestureResponderHandlers;
   active: boolean;
-  testID?: string;
 }) {
   return (
     <View
-      testID={testID}
       {...panHandlers}
       style={{
         position: "absolute",
@@ -552,15 +463,7 @@ function Endpoint({
   );
 }
 
-function LineDragArea({
-  a,
-  b,
-  panHandlers,
-}: {
-  a: Point;
-  b: Point;
-  panHandlers: GestureResponderHandlers;
-}) {
+function LineDragArea({ a, b, panHandlers }: { a: Point; b: Point; panHandlers: GestureResponderHandlers }) {
   const cx = (a.x + b.x) / 2;
   const cy = (a.y + b.y) / 2;
   const length = Math.hypot(b.x - a.x, b.y - a.y);
@@ -583,13 +486,7 @@ function LineDragArea({
   );
 }
 
-function Loupe({
-  photoSource,
-  focusX,
-  focusY,
-  imgWidth,
-  imgHeight,
-}: {
+function Loupe({ photoSource, focusX, focusY, imgWidth, imgHeight }: {
   photoSource: PhotoSource;
   focusX: number;
   focusY: number;
@@ -604,21 +501,7 @@ function Loupe({
   const translateY = LOUPE_SIZE / 2 - focusY * LOUPE_ZOOM;
 
   return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        left: loupeX,
-        top: loupeY,
-        width: LOUPE_SIZE,
-        height: LOUPE_SIZE,
-        borderRadius: LOUPE_SIZE / 2,
-        overflow: "hidden",
-        borderWidth: 2,
-        borderColor: "#fff",
-        backgroundColor: "#000",
-      }}
-    >
+    <View pointerEvents="none" style={[styles.loupeContainer, { top: loupeY, left: loupeX }]}>
       <Image
         source={photoSource}
         style={{
@@ -628,51 +511,35 @@ function Loupe({
         }}
         contentFit="cover"
       />
-      <View
-        style={{
-          position: "absolute",
-          left: LOUPE_SIZE / 2 - 1,
-          top: 0,
-          bottom: 0,
-          width: 2,
-          backgroundColor: "rgba(255,255,255,0.5)",
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          top: LOUPE_SIZE / 2 - 1,
-          left: 0,
-          right: 0,
-          height: 2,
-          backgroundColor: "rgba(255,255,255,0.5)",
-        }}
-      />
+      <View style={styles.loupeCrosshairV} />
+      <View style={styles.loupeCrosshairH} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-  },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 12 },
   headerBtn: { padding: 4 },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+  headerTitle: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  imgWrap: { alignItems: "center", justifyContent: "center", flex: 1, alignSelf: "stretch" },
+
+  tipBanner: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 8,
+    padding: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    zIndex: 10,
   },
-  imgWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    flex: 1,
-    alignSelf: "stretch",
-  },
+  tipText: { color: "#fff", fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 },
+
   bottomPanel: {
     position: "absolute",
     bottom: 0,
@@ -683,10 +550,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  bottomPanelContent: {
-    gap: 8,
-    flexGrow: 1,
-  },
+  bottomPanelContent: { gap: 8, flexGrow: 1 },
+
   aiBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -695,28 +560,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
-  aiBtnText: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    color: "#000",
-  },
-  resultBlock: {
-    gap: 6,
-  },
-  estimateText: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  estimateNote: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-  },
-  adjustRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 4,
-  },
+  aiBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#000" },
+
+  instructionText: { color: "#ffffff", fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center", marginTop: 4 },
+
+  resultBlock: { gap: 6 },
+  estimateText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  estimateNote: { fontSize: 11, fontFamily: "Inter_400Regular" },
+
+  adjustRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   adjustInput: {
     flex: 1,
     borderWidth: 1,
@@ -726,21 +578,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
   },
-  adjustUnit: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
+  adjustUnit: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  acceptBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 22 },
+  acceptText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+
+  errorText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+
+  loupeContainer: {
+    position: "absolute",
+    width: LOUPE_SIZE,
+    height: LOUPE_SIZE,
+    borderRadius: LOUPE_SIZE / 2,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#fff",
+    backgroundColor: "#000",
   },
-  acceptBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 22,
+  loupeCrosshairV: {
+    position: "absolute",
+    left: LOUPE_SIZE / 2 - 1,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: "rgba(255,255,255,0.5)",
   },
-  acceptText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  errorText: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
+  loupeCrosshairH: {
+    position: "absolute",
+    top: LOUPE_SIZE / 2 - 1,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: "rgba(255,255,255,0.5)",
   },
 });

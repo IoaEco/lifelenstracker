@@ -131,7 +131,7 @@ export default function SignInScreen() {
         {step === "phone" ? (
           <>
             <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-              Track your progress, one photo at a time.
+              Track your progress in real time.
             </Text>
 
             <TextInput

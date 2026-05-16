@@ -16,7 +16,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ioaeco.lifelens",
-      "googleServicesFile": "./GoogleService-Info.plist",
       "useModularHeaders": true,
       "infoPlist": {
         "NSCameraUsageDescription": "LumenLens uses the camera to capture your progress photos.",

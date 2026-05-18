@@ -103,9 +103,9 @@ export default function AccountScreen() {
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Image
-                source={require("@/assets/images/icon.png")}
-                style={{ width: 28, height: 28, borderRadius: 6 }}
-                contentFit="cover"
+                source={require("@/assets/images/lumenlens_logo_black.png")}
+                style={{ width: 28, height: 28 }}
+                contentFit="contain"
               />
               <Text style={[styles.appName, { color: colors.mutedForeground }]}>LumenLens</Text>
             </View>

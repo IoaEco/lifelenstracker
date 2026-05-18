@@ -46,7 +46,7 @@ export default function SignInScreen() {
         setStep("code");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (signInErr: any) {
-        await signUp.create({ phone_number: formatted });
+        await signUp.create({ phoneNumber: formatted });
         await signUp.preparePhoneNumberVerification();
         setMode("signup");
         setStep("code");
@@ -121,9 +121,9 @@ export default function SignInScreen() {
       >
         <View style={styles.logoContainer}>
           <Image
-            source={require("@/assets/images/icon.png")}
-            style={{ width: 80, height: 80, borderRadius: 18, marginBottom: 8 }}
-            contentFit="cover"
+            source={require("@/assets/images/lumenlens_logo_black.png")}
+            style={{ width: 80, height: 80, marginBottom: 8 }}
+            contentFit="contain"
           />
           <Text style={[styles.title, { color: colors.foreground }]}>LumenLens</Text>
         </View>

@@ -97,11 +97,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
       `Remove "${label}" from your categories? Existing tracks keep their icon.`,
       [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteCategory(id),
-        },
+        { text: "Delete", style: "destructive", onPress: () => deleteCategory(id) },
       ]
     );
   }
@@ -119,12 +115,13 @@ export function NewTrackModal({ visible, onClose }: Props) {
         style={[styles.container, { backgroundColor: colors.background }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* Logo above header */}
-        <View style={[styles.logoRow, { borderBottomColor: colors.border }]}>
+        {/* Header: X | Logo + Title | Create */}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
             <Ionicons name="close" size={24} color={colors.mutedForeground} />
           </TouchableOpacity>
-          <View style={styles.logoCenter}>
+
+          <View style={styles.headerCenter}>
             <Image
               source={require("@/assets/images/lumenlens_logo_black.png")}
               style={styles.headerLogo}
@@ -134,14 +131,13 @@ export function NewTrackModal({ visible, onClose }: Props) {
               New Track
             </Text>
           </View>
+
           <TouchableOpacity
             onPress={handleSave}
             disabled={saving || !title.trim()}
             style={[
               styles.saveButton,
-              {
-                backgroundColor: title.trim() ? colors.primary : colors.muted,
-              },
+              { backgroundColor: title.trim() ? colors.primary : colors.muted },
             ]}
           >
             <Text
@@ -161,9 +157,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.foreground }]}>
-              TRACK NAME
-            </Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>TRACK NAME</Text>
             <TextInput
               testID="track-title-input"
               style={[
@@ -186,16 +180,12 @@ export function NewTrackModal({ visible, onClose }: Props) {
               autoFocus
             />
             {titleError ? (
-              <Text style={[styles.errorText, { color: colors.destructive }]}>
-                {titleError}
-              </Text>
+              <Text style={[styles.errorText, { color: colors.destructive }]}>{titleError}</Text>
             ) : null}
           </View>
 
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.foreground }]}>
-              DESCRIPTION (OPTIONAL)
-            </Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>DESCRIPTION (OPTIONAL)</Text>
             <TextInput
               style={[
                 styles.inputMulti,
@@ -217,9 +207,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.foreground }]}>
-              MEASUREMENT (OPTIONAL)
-            </Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>MEASUREMENT (OPTIONAL)</Text>
             <Text style={[styles.hint, { color: colors.foreground }]}>
               Track the change in each photo by assigning a measurement — either your own or AI.
             </Text>
@@ -254,9 +242,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
 
           <View style={styles.field}>
             <View style={styles.categoryHeader}>
-              <Text style={[styles.label, { color: colors.foreground }]}>
-                CATEGORY
-              </Text>
+              <Text style={[styles.label, { color: colors.foreground }]}>CATEGORY</Text>
               <Text style={[styles.hint, { color: colors.foreground }]}>
                 Long-press a custom one to remove
               </Text>
@@ -280,9 +266,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
                     style={[
                       styles.iconOption,
                       {
-                        backgroundColor: isSelected
-                          ? colors.primary + "20"
-                          : colors.card,
+                        backgroundColor: isSelected ? colors.primary + "20" : colors.card,
                         borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
@@ -295,21 +279,14 @@ export function NewTrackModal({ visible, onClose }: Props) {
                     <Text
                       style={[
                         styles.iconLabel,
-                        {
-                          color: isSelected ? colors.primary : colors.foreground,
-                        },
+                        { color: isSelected ? colors.primary : colors.foreground },
                       ]}
                       numberOfLines={1}
                     >
                       {cat.label}
                     </Text>
                     {!cat.builtIn && (
-                      <View
-                        style={[
-                          styles.customDot,
-                          { backgroundColor: colors.primary },
-                        ]}
-                      />
+                      <View style={[styles.customDot, { backgroundColor: colors.primary }]} />
                     )}
                   </Pressable>
                 );
@@ -324,16 +301,11 @@ export function NewTrackModal({ visible, onClose }: Props) {
                 style={[
                   styles.iconOption,
                   styles.addCategoryTile,
-                  {
-                    borderColor: colors.primary,
-                    backgroundColor: colors.background,
-                  },
+                  { borderColor: colors.primary, backgroundColor: colors.background },
                 ]}
               >
                 <Ionicons name="add" size={24} color={colors.primary} />
-                <Text style={[styles.iconLabel, { color: colors.primary }]}>
-                  New
-                </Text>
+                <Text style={[styles.iconLabel, { color: colors.primary }]}>New</Text>
               </Pressable>
             </View>
           </View>
@@ -342,9 +314,7 @@ export function NewTrackModal({ visible, onClose }: Props) {
         <NewCategoryModal
           visible={showCategoryModal}
           onClose={() => setShowCategoryModal(false)}
-          onCreated={(cat) => {
-            setSelectedIcon(cat.name);
-          }}
+          onCreated={(cat) => setSelectedIcon(cat.name)}
         />
       </KeyboardAvoidingView>
     </Modal>
@@ -353,25 +323,26 @@ export function NewTrackModal({ visible, onClose }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  logoRow: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  logoCenter: {
+  headerBtn: { padding: 4 },
+  headerCenter: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 8,
   },
   headerLogo: {
-    width: 42,
-    height: 42,
+    width: 36,
+    height: 36,
   },
-  headerBtn: { padding: 4 },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 20,
     fontFamily: "Inter_600SemiBold",
   },
   saveButton: {
@@ -393,15 +364,8 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
     justifyContent: "space-between",
   },
-  hint: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-  },
-  label: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.8,
-  },
+  hint: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  label: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8 },
   input: {
     borderWidth: 1,
     borderRadius: 12,
@@ -421,15 +385,8 @@ const styles = StyleSheet.create({
     minHeight: 90,
     textAlignVertical: "top",
   },
-  errorText: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  iconGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  errorText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  iconGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   iconOption: {
     width: "22%",
     aspectRatio: 1,
@@ -441,10 +398,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     position: "relative",
   },
-  iconLabel: {
-    fontSize: 9,
-    fontFamily: "Inter_500Medium",
-  },
+  iconLabel: { fontSize: 9, fontFamily: "Inter_500Medium" },
   customDot: {
     position: "absolute",
     top: 5,
@@ -453,17 +407,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-  addCategoryTile: {
-    borderStyle: "dashed",
-  },
-  measurementRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  measurementLabelInput: {
-    flex: 2,
-  },
-  measurementUnitInput: {
-    flex: 1,
-  },
+  addCategoryTile: { borderStyle: "dashed" },
+  measurementRow: { flexDirection: "row", gap: 8 },
+  measurementLabelInput: { flex: 2 },
 });

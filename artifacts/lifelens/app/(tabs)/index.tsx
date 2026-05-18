@@ -77,25 +77,14 @@ function TrackCard({ track }: { track: Track }) {
       ]}
     >
       <View style={[styles.iconContainer, { backgroundColor: colors.primary + "20" }]}>
-        <Ionicons
-          name={track.iconName}
-          size={26}
-          color={colors.primary}
-        />
+        <Ionicons name={track.iconName} size={26} color={colors.primary} />
       </View>
-
       <View style={styles.cardInfo}>
-        <Text
-          style={[styles.cardTitle, { color: colors.foreground }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={1}>
           {track.title}
         </Text>
         {track.description ? (
-          <Text
-            style={[styles.cardDesc, { color: colors.mutedForeground }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.cardDesc, { color: colors.mutedForeground }]} numberOfLines={1}>
             {track.description}
           </Text>
         ) : null}
@@ -114,7 +103,6 @@ function TrackCard({ track }: { track: Track }) {
           )}
         </View>
       </View>
-
       {latestPhoto ? (
         <Image
           source={resolvePhotoSource(latestPhoto)}
@@ -157,53 +145,46 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPadding + 8, borderBottomColor: colors.border }]}>
-
-        {/* Row 1: Logo centered */}
-        <View style={styles.logoRow}>
+        {/* Left: Logo + Title stack */}
+        <View style={styles.headerLeft}>
           <Image
             source={require("@/assets/images/lumenlens_logo_black.png")}
             style={styles.headerLogo}
             contentFit="contain"
           />
-        </View>
-
-        {/* Row 2: "Tracks" centered, buttons to the right */}
-        <View style={styles.titleRow}>
-          <View style={styles.titleCenter}>
+          <View style={styles.headerTitleBlock}>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Tracks</Text>
             <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
               {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
             </Text>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              testID="add-track-button"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setShowModal(true);
-              }}
-              style={[styles.addButton, { backgroundColor: colors.primary }]}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={24} color="#000" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="account-button"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/account" as Href);
-              }}
-              style={[
-                styles.iconButton,
-                { backgroundColor: colors.muted, borderColor: colors.border },
-              ]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="person-circle-outline" size={26} color={colors.foreground} />
-            </TouchableOpacity>
-          </View>
         </View>
 
+        {/* Right: + and Account buttons */}
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            testID="add-track-button"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowModal(true);
+            }}
+            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={24} color="#000" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="account-button"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/account" as Href);
+            }}
+            style={[styles.iconButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="person-circle-outline" size={26} color={colors.foreground} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {tracks.length === 0 ? (
@@ -234,10 +215,7 @@ export default function HomeScreen() {
           data={tracks}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <TrackCard track={item} />}
-          contentContainerStyle={[
-            styles.list,
-            { paddingBottom: bottomPadding + 16 },
-          ]}
+          contentContainerStyle={[styles.list, { paddingBottom: bottomPadding + 16 }]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={tracks.length > 0}
           ListFooterComponent={
@@ -248,48 +226,46 @@ export default function HomeScreen() {
         />
       )}
 
-      <NewTrackModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-      />
-
+      <NewTrackModal visible={showModal} onClose={() => setShowModal(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  logoRow: {
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  headerLogo: {
-    width: 42,
-    height: 42,
-  },
-  titleRow: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
+    gap: 10,
   },
-  titleCenter: {
-    alignItems: "center",
-    flex: 1,
+  headerLogo: {
+    width: 36,
+    height: 36,
+  },
+  headerTitleBlock: {
+    gap: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    position: "absolute",
-    right: 0,
   },
   iconButton: {
     width: 40,
@@ -298,16 +274,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
   },
   addButton: {
     width: 44,
@@ -336,43 +302,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  cardDesc: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
+  cardInfo: { flex: 1, gap: 3 },
+  cardTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  cardDesc: { fontSize: 13, fontFamily: "Inter_400Regular" },
   cardMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     marginTop: 2,
   },
-  metaText: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-  },
+  metaText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  dot: { width: 3, height: 3, borderRadius: 1.5 },
   thumbnail: {
     width: 58,
     height: 58,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  thumbnailEmpty: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  thumbnailEmpty: { alignItems: "center", justifyContent: "center" },
   emptyState: {
     flex: 1,
     alignItems: "center",
@@ -388,11 +335,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  emptyTitle: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-  },
+  emptyTitle: { fontSize: 22, fontFamily: "Inter_700Bold", textAlign: "center" },
   emptyText: {
     fontSize: 15,
     fontFamily: "Inter_400Regular",

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -118,13 +119,21 @@ export function NewTrackModal({ visible, onClose }: Props) {
         style={[styles.container, { backgroundColor: colors.background }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        {/* Logo above header */}
+        <View style={[styles.logoRow, { borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
             <Ionicons name="close" size={24} color={colors.mutedForeground} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            New Track
-          </Text>
+          <View style={styles.logoCenter}>
+            <Image
+              source={require("@/assets/images/lumenlens_logo_black.png")}
+              style={styles.headerLogo}
+              contentFit="contain"
+            />
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+              New Track
+            </Text>
+          </View>
           <TouchableOpacity
             onPress={handleSave}
             disabled={saving || !title.trim()}
@@ -344,13 +353,21 @@ export function NewTrackModal({ visible, onClose }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
+  logoRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  logoCenter: {
+    alignItems: "center",
+    gap: 2,
+  },
+  headerLogo: {
+    width: 42,
+    height: 42,
   },
   headerBtn: { padding: 4 },
   headerTitle: {

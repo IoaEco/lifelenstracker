@@ -157,46 +157,53 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPadding + 8, borderBottomColor: colors.border }]}>
-        <View>
-          <View style={styles.headerTitleRow}>
-            <Image
-              source={require("@/assets/images/icon.png")}
-              style={{ width: 28, height: 28, borderRadius: 6, marginRight: 8 }}
-              contentFit="cover"
-            />
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>LumenLens</Text>
+
+        {/* Row 1: Logo centered */}
+        <View style={styles.logoRow}>
+          <Image
+            source={require("@/assets/images/lumenlens_logo_black.png")}
+            style={styles.headerLogo}
+            contentFit="contain"
+          />
+        </View>
+
+        {/* Row 2: "Tracks" centered, buttons to the right */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleCenter}>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Tracks</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
+              {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
+            </Text>
           </View>
-          <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
-            {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
-          </Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              testID="add-track-button"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowModal(true);
+              }}
+              style={[styles.addButton, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={24} color="#000" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="account-button"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/account" as Href);
+              }}
+              style={[
+                styles.iconButton,
+                { backgroundColor: colors.muted, borderColor: colors.border },
+              ]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="person-circle-outline" size={26} color={colors.foreground} />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            testID="account-button"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/account" as Href);
-            }}
-            style={[
-              styles.iconButton,
-              { backgroundColor: colors.muted, borderColor: colors.border },
-            ]}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="person-circle-outline" size={26} color={colors.foreground} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            testID="add-track-button"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setShowModal(true);
-            }}
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={24} color="#000" />
-          </TouchableOpacity>
-        </View>
+
       </View>
 
       {tracks.length === 0 ? (
@@ -255,17 +262,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  logoRow: {
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  headerLogo: {
+    width: 42,
+    height: 42,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  titleCenter: {
+    alignItems: "center",
+    flex: 1,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    position: "absolute",
+    right: 0,
   },
   iconButton: {
     width: 40,
@@ -274,10 +298,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
-  },
-  headerTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
   },
   headerTitle: {
     fontSize: 28,

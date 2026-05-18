@@ -46,7 +46,7 @@ export default function SignInScreen() {
         setStep("code");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (signInErr: any) {
-        await signUp.create({ phoneNumber: formatted });
+        await signUp.create({ phone_number: formatted });
         await signUp.preparePhoneNumberVerification();
         setMode("signup");
         setStep("code");

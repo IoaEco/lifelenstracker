@@ -1258,10 +1258,61 @@ export default function TrackDetailScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPadding + 8, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
+        {/* Row 1: back button (left) + action buttons (right) */}
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={colors.foreground} />
+          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            {canShare ? (
+              <TouchableOpacity
+                testID="share-track-button"
+                onPress={handleSharePress}
+                disabled={sharing || exportingTimelapse}
+                style={[
+                  styles.headerIconBtn,
+                  (sharing || exportingTimelapse) && styles.headerIconBtnDisabled,
+                ]}
+                accessibilityLabel="Share this track"
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={22}
+                  color={
+                    sharing || exportingTimelapse
+                      ? colors.mutedForeground
+                      : colors.foreground
+                  }
+                />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              testID="track-settings-button"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSettingsOpen(true);
+              }}
+              style={styles.configureBtn}
+            >
+              <Text style={[styles.configureBtnText, { color: colors.mutedForeground }]}>Configure</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDelete} style={styles.headerIconBtn}>
+              <Ionicons name="trash-outline" size={20} color={colors.destructive} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Row 2: Logo centered */}
+        <View style={styles.headerLogoRow}>
+          <Image
+            source={require("@/assets/images/lumenlens_logo_black.png")}
+            style={styles.headerLogo}
+            contentFit="contain"
+          />
+        </View>
+
+        {/* Row 3: Track icon + title centered */}
+        <View style={styles.headerTitleRow}>
           <View style={[styles.headerIcon, { backgroundColor: colors.primary + "20" }]}>
             <Ionicons name={track.iconName} size={18} color={colors.primary} />
           </View>
@@ -1269,41 +1320,6 @@ export default function TrackDetailScreen() {
             {track.title}
           </Text>
         </View>
-        {canShare ? (
-          <TouchableOpacity
-            testID="share-track-button"
-            onPress={handleSharePress}
-            disabled={sharing || exportingTimelapse}
-            style={[
-              styles.headerIconBtn,
-              (sharing || exportingTimelapse) && styles.headerIconBtnDisabled,
-            ]}
-            accessibilityLabel="Share this track"
-          >
-            <Ionicons
-              name="share-outline"
-              size={22}
-              color={
-                sharing || exportingTimelapse
-                  ? colors.mutedForeground
-                  : colors.foreground
-              }
-            />
-          </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity
-          testID="track-settings-button"
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setSettingsOpen(true);
-          }}
-          style={styles.configureBtn}
-        >
-          <Text style={[styles.configureBtnText, { color: colors.mutedForeground }]}>Configure</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleDelete} style={styles.headerIconBtn}>
-          <Ionicons name="trash-outline" size={20} color={colors.destructive} />
-        </TouchableOpacity>
       </View>
 
       {canShare && leftPhoto && rightPhoto ? (
@@ -1638,21 +1654,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 8,
   },
-  backBtn: {
-    padding: 4,
-  },
-  headerCenter: {
-    flex: 1,
+  headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  headerLogoRow: {
+    alignItems: "center",
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  headerLogo: {
+    width: 42,
+    height: 42,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
   headerIcon: {
     width: 34,
@@ -1664,7 +1693,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontFamily: "Inter_600SemiBold",
-    flex: 1,
+    textAlign: "center",
+  },
+  backBtn: {
+    padding: 4,
   },
   headerIconBtn: {
     padding: 4,

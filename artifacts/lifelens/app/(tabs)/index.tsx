@@ -152,6 +152,7 @@ export default function HomeScreen() {
             style={styles.headerLogo}
             contentFit="contain"
           />
+          <Text style={[styles.headerLogoText, { color: colors.mutedForeground }]}>LumenLens</Text>
           <View style={styles.headerTitleBlock}>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Tracks</Text>
             <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
@@ -159,7 +160,6 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
-
         {/* Right: + and Account buttons */}
         <View style={styles.headerActions}>
           <TouchableOpacity
@@ -249,6 +249,11 @@ const styles = StyleSheet.create({
   headerLogo: {
     width: 36,
     height: 36,
+  },
+  headerLogoText: {
+    fontSize: 9,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.5,
   },
   headerTitleBlock: {
     gap: 1,

@@ -52,8 +52,8 @@ export default function SignInScreen() {
         setStep("code");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch (err: any) {
-      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? "Could not send code.";
+    } catch {
+      const msg = "Please enter a valid phone number.";
       setError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -93,7 +93,7 @@ export default function SignInScreen() {
         }
       }
     } catch (err: any) {
-      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? "Invalid code.";
+      const msg = "Please enter a valid code.";
       setError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -266,6 +266,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_400Regular",
     marginBottom: 16,
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 15,

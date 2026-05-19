@@ -303,7 +303,7 @@ function BeforeAfterSlider({
         >
           <Text style={[styles.swapChipLabel, { color: colors.primary }]}>BEFORE</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
-            {designations.get(leftPhoto.id) ?? formatShortDate(leftPhoto.takenAt)}
+            {designations.get(rightPhoto.id) ?? formatShortDate(rightPhoto.takenAt)}
           </Text>
           {measurement ? (
             <Text
@@ -311,8 +311,8 @@ function BeforeAfterSlider({
               style={[styles.swapChipValue, { color: colors.mutedForeground }]}
               numberOfLines={1}
             >
-              {leftPhoto.measurementValue != null
-                ? formatMeasurementValue(leftPhoto.measurementValue, measurement.unit)
+              {rightPhoto.measurementValue != null
+                ? formatMeasurementValue(rightPhoto.measurementValue, measurement.unit)
                 : "—"}
             </Text>
           ) : null}
@@ -325,7 +325,7 @@ function BeforeAfterSlider({
         >
           <Text style={[styles.swapChipLabel, { color: colors.primary }]}>AFTER</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
-            {designations.get(rightPhoto.id) ?? formatShortDate(rightPhoto.takenAt)}
+            {designations.get(leftPhoto.id) ?? formatShortDate(leftPhoto.takenAt)}
           </Text>
           {measurement ? (
             <Text
@@ -333,8 +333,8 @@ function BeforeAfterSlider({
               style={[styles.swapChipValue, { color: colors.mutedForeground }]}
               numberOfLines={1}
             >
-              {rightPhoto.measurementValue != null
-                ? formatMeasurementValue(rightPhoto.measurementValue, measurement.unit)
+              {leftPhoto.measurementValue != null
+                ? formatMeasurementValue(leftPhoto.measurementValue, measurement.unit)
                 : "—"}
             </Text>
           ) : null}
@@ -520,6 +520,9 @@ function PhotoPickerModal({
           ]}
         >
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={onClose} hitSlop={8}>
+              <Ionicons name="chevron-back" size={24} color={colors.foreground} />
+            </TouchableOpacity>
             <Text style={[styles.pickerTitle, { color: colors.foreground }]}>{title}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={24} color={colors.foreground} />
@@ -1069,8 +1072,8 @@ export default function TrackDetailScreen() {
 
   function pickerTitle(): string {
     if (!pickerTarget) return "Choose a photo";
-    if (pickerTarget.kind === "slider-left") return "Choose the BEFORE photo";
-    if (pickerTarget.kind === "slider-right") return "Choose the AFTER photo";
+    if (pickerTarget.kind === "slider-left") return "Choose the AFTER photo";
+    if (pickerTarget.kind === "slider-right") return "Choose the BEFORE photo";
     if (pickerTarget.kind === "grid-add") return "Add a photo to compare";
     return "Choose a photo";
   }

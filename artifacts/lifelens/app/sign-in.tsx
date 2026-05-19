@@ -103,6 +103,7 @@ export default function SignInScreen() {
 
   function handleChangeNumber() {
     setCode("");
+    setPhoneNumber("");
     setError(null);
     setMode("signin");
     setStep("phone");
@@ -179,7 +180,7 @@ export default function SignInScreen() {
             </Pressable>
 
             {phoneNumber.trim() ? (
-              <Pressable onPress={() => setPhoneNumber("")} style={styles.changeNumber}>
+              <Pressable onPress={() => { setPhoneNumber(""); setError(null); }} style={styles.changeNumber}>
                 <Text style={[styles.changeNumberText, { color: colors.mutedForeground }]}>
                   Try again
                 </Text>

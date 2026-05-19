@@ -19,7 +19,6 @@
       "useModularHeaders": true,
       "infoPlist": {
         "NSCameraUsageDescription": "LumenLens uses the camera to capture your progress photos.",
-        "NSMotionUsageDescription": "LumenLens uses motion sensors to help you align photos consistently.",
         "NSPhotoLibraryUsageDescription": "LumenLens needs access to your photo library to save your progress photos.",
         "NSPhotoLibraryAddUsageDescription": "LumenLens saves your progress photos to your photo library.",
         "ITSAppUsesNonExemptEncryption": false

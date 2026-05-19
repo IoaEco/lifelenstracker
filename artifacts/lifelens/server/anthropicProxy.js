@@ -1,19 +1,16 @@
 const http = require('http');
 const https = require('https');
-
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
-
   if (req.method === 'POST' && req.url === '/api/ai-estimate') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
@@ -24,7 +21,7 @@ const server = http.createServer((req, res) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY,
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
           'anthropic-version': '2023-06-01',
         }
       };

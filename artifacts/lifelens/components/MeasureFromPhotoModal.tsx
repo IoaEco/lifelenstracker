@@ -386,6 +386,9 @@ No units, no explanation, no extra text whatsoever.`,
             </TouchableOpacity>
 
             <Text style={styles.instructionText}>Place S1 at the start · S2 at the end</Text>
+            <Text style={styles.disclaimerText}>
+              AI estimates may not be accurate. Always verify measurements manually.
+            </Text>
 
             {aiState.status === "result" && (
               <View style={styles.resultBlock}>
@@ -583,6 +586,13 @@ const styles = StyleSheet.create({
   acceptText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
   errorText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  disclaimerText: { 
+    color: "rgba(255,255,255,0.5)", 
+    fontSize: 10, 
+    fontFamily: "Inter_400Regular", 
+    textAlign: "center",
+    fontStyle: "italic",
+  },
 
   loupeContainer: {
     position: "absolute",

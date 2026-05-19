@@ -311,8 +311,8 @@ function BeforeAfterSlider({
               style={[styles.swapChipValue, { color: colors.mutedForeground }]}
               numberOfLines={1}
             >
-              {rightPhoto.measurementValue != null
-                ? formatMeasurementValue(rightPhoto.measurementValue, measurement.unit)
+              {leftPhoto.measurementValue != null
+                ? formatMeasurementValue(leftPhoto.measurementValue, measurement.unit)
                 : "—"}
             </Text>
           ) : null}
@@ -325,7 +325,7 @@ function BeforeAfterSlider({
         >
           <Text style={[styles.swapChipLabel, { color: colors.primary }]}>AFTER</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
-            {designations.get(leftPhoto.id) ?? formatShortDate(leftPhoto.takenAt)}
+            {designations.get(rightPhoto.id) ?? formatShortDate(rightPhoto.takenAt)}
           </Text>
           {measurement ? (
             <Text
@@ -419,7 +419,7 @@ function GridCompare({
           <View style={[styles.gridTileMeta, { backgroundColor: colors.card }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.gridTileDate, { color: colors.foreground }]} numberOfLines={1}>
-                {formatShortDate(photo.takenAt)}
+                {designations.get(photo.id) ?? formatShortDate(photo.takenAt)}
               </Text>
               <Text style={[styles.gridTileTime, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {new Date(photo.takenAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}

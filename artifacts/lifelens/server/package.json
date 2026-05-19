@@ -1,0 +1,10 @@
+{
+  "name": "lumenlens-proxy",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node anthropicProxy.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

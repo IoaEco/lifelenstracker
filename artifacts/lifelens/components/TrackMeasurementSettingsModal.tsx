@@ -100,19 +100,22 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable onPress={() => {}}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-                maxHeight: "85%",
-              },
-            ]}
-          >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1, justifyContent: "flex-end" }}
+      >
+        <Pressable style={styles.backdrop} onPress={onClose}>
+          <Pressable onPress={() => {}}>
+            <View
+              style={[
+                styles.sheet,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  maxHeight: "85%",
+                },
+              ]}
+            >
             <ScrollView
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.scrollContent}
@@ -199,9 +202,10 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
                 </Text>
               </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+          </View>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

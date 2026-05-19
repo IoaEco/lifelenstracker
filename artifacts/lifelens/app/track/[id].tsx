@@ -584,7 +584,7 @@ function BackupBadge({
   onRetry: () => void;
   colors: ReturnType<typeof useColors>;
 }) {
-  if (status === "local-only") return null;
+  if (status === "local-only" || status === "pending") return null;
 
   let icon: React.ComponentProps<typeof Ionicons>["name"] = "cloud-outline";
   let label = "";

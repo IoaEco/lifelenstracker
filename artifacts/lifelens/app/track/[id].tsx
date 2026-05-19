@@ -376,6 +376,7 @@ function GridCompare({
   canAdd,
   canRemove,
   measurement,
+  designations,
 }: {
   selectedPhotos: TrackPhoto[];
   resolveSrc: (p: TrackPhoto) => PhotoSource;
@@ -386,6 +387,7 @@ function GridCompare({
   canAdd: boolean;
   canRemove: boolean;
   measurement: Measurement | null;
+  designations: Map<string, string>;
 }) {
   const colors = useColors();
   const tileWidth = 140;
@@ -1510,6 +1512,7 @@ export default function TrackDetailScreen() {
                     canAdd={gridPhotos.length < MAX_GRID_PHOTOS && gridPhotos.length < trackPhotos.length}
                     canRemove={gridPhotos.length > 2}
                     measurement={measurement}
+                    designations={photoDesignations}
                   />
                 )}
               </View>

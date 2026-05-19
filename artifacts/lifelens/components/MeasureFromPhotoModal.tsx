@@ -269,7 +269,7 @@ No units, no explanation, no extra text whatsoever.`,
       if (!Number.isFinite(num) || num <= 0) {
         setAiState({
           status: "error",
-          message: "AI could not detect a valid measurement. Try a clearer photo with a reference object.",
+          message: "AI could not assign a valid measurement. Try a clearer photo with a reference object.",
         });
         return;
       }
@@ -279,9 +279,15 @@ No units, no explanation, no extra text whatsoever.`,
 
     } catch (err: any) {
       console.error('AI Estimation Error:', err);
+      const errMsg = err.message || "";
+      const isImageError = errMsg.toLowerCase().includes("image") || 
+                           errMsg.toLowerCase().includes("load") ||
+                           errMsg.toLowerCase().includes("reader");
       setAiState({
         status: "error",
-        message: err.message || "Failed to get AI estimate. Please try again.",
+        message: isImageError 
+          ? "For AI estimation please retake a clearer photo."
+          : "Failed to get AI estimate. Please try again.",
       });
     }
   }
@@ -587,9 +593,9 @@ const styles = StyleSheet.create({
 
   errorText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   disclaimerText: { 
-    color: "rgba(255,255,255,0.5)", 
-    fontSize: 10, 
-    fontFamily: "Inter_400Regular", 
+    color: "rgba(255,255,255,0.8)", 
+    fontSize: 12, 
+    fontFamily: "Inter_500Medium", 
     textAlign: "center",
     fontStyle: "italic",
   },

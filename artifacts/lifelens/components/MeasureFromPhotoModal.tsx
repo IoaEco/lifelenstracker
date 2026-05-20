@@ -217,16 +217,11 @@ export function MeasureFromPhotoModal({
 
       if (!manipulated.base64) throw new Error("Failed to process image");
 
-      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-      if (!apiKey) throw new Error("Anthropic API key is missing");
-
-      const response = await fetch('https://workspacelifelens-production.up.railway.app', {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
+      const response = await fetch('https://workspacelifelens-production.up.railway.app/api/ai-estimate', {
+  method: "POST",
+  headers: {
+    'Content-Type': 'application/json',
+  },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",        // Best current model
           max_tokens: 100,
@@ -236,6 +231,7 @@ Respond with ONLY a single number (with at most one decimal place).
 No units, no explanation, no extra text whatsoever.`,
           messages: [
             {
+              
               role: "user",
               content: [
                 {

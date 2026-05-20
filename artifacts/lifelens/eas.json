@@ -16,8 +16,8 @@
     },
     "production": {
       "autoIncrement": true,
-      "environment": {
-        "PNPM_NO_FROZEN_LOCKFILE": "1"
+      "env": {
+        "EAS_NO_FROZEN_LOCKFILE": "1"
       }
     }
   },

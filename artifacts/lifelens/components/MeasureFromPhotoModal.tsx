@@ -220,7 +220,7 @@ export function MeasureFromPhotoModal({
       const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
       if (!apiKey) throw new Error("Anthropic API key is missing");
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://workspacelifelens-production.up.railway.app', {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',

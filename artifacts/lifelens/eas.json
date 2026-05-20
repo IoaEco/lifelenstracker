@@ -4,7 +4,6 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "frozenLockfile": false,
     "development": {
       "developmentClient": true,
       "distribution": "internal",
@@ -16,7 +15,10 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": {
+        "PNPM_NO_FROZEN_LOCKFILE": "1"
+      }
     }
   },
   "submit": {

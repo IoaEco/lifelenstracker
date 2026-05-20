@@ -392,7 +392,7 @@ No units, no explanation, no extra text whatsoever.`,
             </TouchableOpacity>
 
             <Text style={styles.instructionText}>Place S1 at the start · S2 at the end</Text>
-            <Text style={styles.disclaimerText}>
+            <Text style={[styles.disclaimerText, { textAlign: "center" }]}>
               AI estimates may not be accurate. Always verify measurements manually.
             </Text>
 

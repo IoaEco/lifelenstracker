@@ -204,7 +204,7 @@ export default function SignInScreen() {
                   color: colors.foreground,
                 },
               ]}
-              keyboardType="number-pad"
+              keyboardType="number-pad"          
               placeholder="000000"
               placeholderTextColor={colors.mutedForeground}
               value={code}

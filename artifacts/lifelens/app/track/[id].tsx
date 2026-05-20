@@ -303,7 +303,7 @@ function BeforeAfterSlider({
         >
           <Text style={[styles.swapChipLabel, { color: colors.primary }]}>BEFORE</Text>
           <Text style={[styles.swapChipDate, { color: colors.foreground }]} numberOfLines={1}>
-            {designations.get(rightPhoto.id) ?? formatShortDate(rightPhoto.takenAt)}
+            {designations.get(leftPhoto.id) ?? formatShortDate(leftPhoto.takenAt)}
           </Text>
           {measurement ? (
             <Text
@@ -311,8 +311,8 @@ function BeforeAfterSlider({
               style={[styles.swapChipValue, { color: colors.mutedForeground }]}
               numberOfLines={1}
             >
-              {leftPhoto.measurementValue != null
-                ? formatMeasurementValue(leftPhoto.measurementValue, measurement.unit)
+              {rightPhoto.measurementValue != null
+                ? formatMeasurementValue(rightPhoto.measurementValue, measurement.unit)
                 : "—"}
             </Text>
           ) : null}

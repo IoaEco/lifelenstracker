@@ -15,7 +15,10 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "PNPM_FLAGS": "--no-frozen-lockfile"
+      }
     }
   },
   "submit": {

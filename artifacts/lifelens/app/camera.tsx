@@ -386,7 +386,7 @@ export default function CameraScreen() {
           contentFit="cover"
         />
         <View style={[styles.reviewBottom, { paddingBottom: bottomPad + 16 }]}>
-          <Text style={styles.reviewLabel}>{measurement.label.toUpperCase()}</Text>
+          <Text style={styles.reviewLabel}>{measurement ? measurement.label.toUpperCase() : "NEW PHOTO"}</Text>
           <Text style={styles.reviewSubtitle}>
             Enter the current measurement to track your progress over time.
           </Text>
@@ -400,13 +400,13 @@ export default function CameraScreen() {
                 if (captureError) setCaptureError(null);
                 if (measuredVisuallyForPending) setMeasuredVisuallyForPending(false);
               }}
-              placeholder={measurement.unit ? `0 ${measurement.unit}` : "0"}
+              placeholder={measurement?.unit ? `0 ${measurement.unit}` : "0"}
               placeholderTextColor="rgba(255,255,255,0.4)"
               keyboardType="decimal-pad"
               autoFocus
               maxLength={10}
             />
-            {measurement.unit ? (
+            {measurement?.unit ? (
               <Text style={styles.reviewUnit}>{measurement.unit}</Text>
             ) : null}
           </View>
@@ -461,8 +461,8 @@ export default function CameraScreen() {
         <MeasureFromPhotoModal
           visible={measureFromPhotoOpen}
           photoSource={pendingUri ? { uri: pendingUri } : null}
-          measurementLabel={measurement.label}
-          measurementUnit={measurement.unit}
+          measurementLabel={measurement?.label ?? ""}
+          measurementUnit={measurement?.unit ?? ""}
           initialReferenceId={track?.lastReferenceId ?? null}
           onClose={() => setMeasureFromPhotoOpen(false)}
           onAccept={async ({ value, referenceId }) => {

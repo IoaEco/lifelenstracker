@@ -400,7 +400,7 @@ export default function CameraScreen() {
                 if (captureError) setCaptureError(null);
                 if (measuredVisuallyForPending) setMeasuredVisuallyForPending(false);
               }}
-              placeholder={measurement?.unit ? `0 ${measurement.unit}` : "0"}
+              placeholder="0"
               placeholderTextColor="rgba(255,255,255,0.4)"
               keyboardType="decimal-pad"
               autoFocus

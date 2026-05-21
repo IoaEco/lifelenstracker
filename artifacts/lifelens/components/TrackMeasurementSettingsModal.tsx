@@ -129,7 +129,7 @@ export function TrackMeasurementSettingsModal({ visible, measurement, onClose, o
                 </TouchableOpacity>
               </View>
               <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-                To track height, waist size, hair length, etc., assign each photo a measurement — your own or AI. A label and unit are required to use AI measurement. Example: Label = Height, Unit = in.
+                To track your journey in numbers, assign each photo a measurement — either your own or AI. This step is optional. Scroll up to add a unit of measure.
               </Text>
 
               <View style={styles.field}>

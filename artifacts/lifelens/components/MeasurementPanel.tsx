@@ -202,7 +202,7 @@ export function MeasurementPanel({ measurement, photos }: Props) {
         </Text>
       ) : (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          After taking the photo assign a measurement to each photo — either your own or AI estimation. Tap the pencil icon on any photo to add or edit a value. Always configure a unit and label first.
+          To track your journey in numbers, assign each photo a measurement — either your own or AI. This step is optional. Scroll up to add a unit of measure.
         </Text>
       )}
 

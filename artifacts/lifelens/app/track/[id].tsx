@@ -1074,8 +1074,8 @@ export default function TrackDetailScreen() {
 
   function pickerTitle(): string {
     if (!pickerTarget) return "Choose a photo";
-    if (pickerTarget.kind === "slider-left") return "Choose the AFTER photo";
-    if (pickerTarget.kind === "slider-right") return "Choose the BEFORE photo";
+    if (pickerTarget.kind === "slider-left") return "Choose the BEFORE photo";
+    if (pickerTarget.kind === "slider-right") return "Choose the AFTER photo";
     if (pickerTarget.kind === "grid-add") return "Add a photo to compare";
     return "Choose a photo";
   }

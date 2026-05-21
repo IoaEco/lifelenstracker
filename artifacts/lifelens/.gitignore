@@ -40,3 +40,4 @@ yarn-error.*
 
 .env
 GoogleService-Info.plist
+*.txt

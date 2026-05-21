@@ -311,8 +311,8 @@ function BeforeAfterSlider({
               style={[styles.swapChipValue, { color: colors.mutedForeground }]}
               numberOfLines={1}
             >
-              {rightPhoto.measurementValue != null
-                ? formatMeasurementValue(rightPhoto.measurementValue, measurement.unit)
+              {leftPhoto.measurementValue != null
+                ? formatMeasurementValue(leftPhoto.measurementValue, measurement.unit)
                 : "—"}
             </Text>
           ) : null}
@@ -1550,6 +1550,22 @@ export default function TrackDetailScreen() {
           </>
         }
       />
+
+      {/* Configure prompt — shown when photos exist but no measurement set up */}
+      {trackPhotos.length > 0 && !measurement ? (
+        <View style={[styles.configurePrompt, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity
+            onPress={() => setSettingsOpen(true)}
+            style={[styles.configurePromptBtn, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.configurePromptBtnText}>Configure Photo</Text>
+          </TouchableOpacity>
+          <Text style={[styles.configurePromptText, { color: colors.mutedForeground }]}>
+            Configuration is optional, but required if you want to use AI estimation for measurements.
+          </Text>
+        </View>
+      ) : null}
 
       {/* Floating Camera Button */}
       <View

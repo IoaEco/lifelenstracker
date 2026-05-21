@@ -297,7 +297,7 @@ function BeforeAfterSlider({
       {/* Swappable date chips below the slider so they don't conflict with the drag handle */}
       <View style={[styles.swapChipRow, { width: imageWidth }]}>
         <TouchableOpacity
-          onPress={onChangeRight}
+          onPress={onChangeLeft}
           style={[styles.swapChip, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
         >
@@ -319,7 +319,7 @@ function BeforeAfterSlider({
           <Ionicons name="images-outline" size={14} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={onChangeLeft}
+          onPress={onChangeRight}
           style={[styles.swapChip, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
         >
@@ -1551,23 +1551,7 @@ export default function TrackDetailScreen() {
         }
       />
 
-      {/* Configure prompt — shown when photos exist but no measurement set up */}
-      {trackPhotos.length > 0 && !measurement ? (
-        <View style={[styles.configurePrompt, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <TouchableOpacity
-            onPress={() => setSettingsOpen(true)}
-            style={[styles.configurePromptBtn, { backgroundColor: colors.primary }]}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.configurePromptBtnText}>Configure Photo</Text>
-          </TouchableOpacity>
-          <Text style={[styles.configurePromptText, { color: colors.mutedForeground }]}>
-            Configuration is optional, but required if you want to use AI estimation for measurements.
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Floating Camera Button */}
+          {/* Floating Camera Button */}
       <View
         style={[
           styles.cameraButtonWrap,
@@ -2240,4 +2224,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 2,
   },
+  configurePrompt: {
+    marginHorizontal: 24,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    gap: 10,
+  },
+  configurePromptBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  configurePromptBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "#000",
+  },
+  configurePromptText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 18,
+  }, 
 });

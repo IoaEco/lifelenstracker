@@ -39,7 +39,6 @@ export default function SignInScreen() {
     try {
       const digits = phoneNumber.replace(/\D/g, "");
       const formatted = `+1${digits.startsWith("1") ? digits.slice(1) : digits}`;
-      console.log("Attempting with:", formatted);
       try {
         await signIn.create({ strategy: "phone_code", identifier: formatted });
         setMode("signin");
@@ -68,8 +67,6 @@ export default function SignInScreen() {
     try {
       if (mode === "signup") {
         let result = await signUp.attemptPhoneNumberVerification({ code });
-        console.log("signUp verify result status:", result.status);
-        console.log("SignUp result:", JSON.stringify(result));
         if (result.status === "missing_requirements") {
           result = await signUp.update({});
         }
@@ -82,9 +79,7 @@ export default function SignInScreen() {
         }
       } else {
         const result = await signIn.attemptFirstFactor({ strategy: "phone_code", code });
-        console.log("signIn verify result status:", result.status);
-        console.log("SignIn result:", JSON.stringify(result));
-        if (result.status === "complete") {
+                if (result.status === "complete") {
           await setActiveSignIn({ session: result.createdSessionId });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           router.replace("/(tabs)" as Href);

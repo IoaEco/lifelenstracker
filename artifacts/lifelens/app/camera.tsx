@@ -238,13 +238,9 @@ export default function CameraScreen() {
         setPendingTilt(tilt);
         setMeasurementInput("");
       } else {
-        await addPhoto({
-          trackId: trackId ?? "",
-          uri: permanentUri,
-          tilt,
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.back();
+        setPendingUri(permanentUri);
+        setPendingTilt(tilt);
+        setMeasurementInput("");
       }
     } catch (err) {
       setCaptureError(err instanceof Error ? err.message : String(err));
@@ -371,7 +367,7 @@ export default function CameraScreen() {
 
   const cameraHeight = height - bottomPad - 130 - topPad;
 
-  if (pendingUri && measurement) {
+  if (pendingUri) {
     return (
       <KeyboardAvoidingView
         style={[styles.container, { backgroundColor: "#000" }]}
